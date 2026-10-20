@@ -109,9 +109,18 @@ public final class BridgeSocketServer: @unchecked Sendable {
     private var serverFd: Int32 = -1
     private var isRunning: Bool = false
     private let lock = NSLock()
-    private var activeConnection: BridgeSocketConnection?
-    public weak var listener: SocketEventListener?
-
+    private var activeConnections: [String: BridgeSocketConnection] = [:]
+    public var activePeerCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return activeConnections.count
+    }
+    public var hasActiveConnection: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !activeConnections.isEmpty
+    }
+     public weak var listener: SocketEventListener?
     public init(port: Int = 54884) {
         self.port = port
     }
@@ -170,8 +179,7 @@ public final class BridgeSocketServer: @unchecked Sendable {
                 let ipStr = String(cString: inet_ntoa(clientAddr.sin_addr))
                 let conn = BridgeSocketConnection(fd: clientFd, listener: self.listener)
                 self.lock.lock()
-                self.activeConnection?.closeConnection()
-                self.activeConnection = conn
+                self.activeConnections[ipStr] = conn
                 self.lock.unlock()
 
                 self.listener?.onConnected(remoteAddress: ipStr)
@@ -184,8 +192,15 @@ public final class BridgeSocketServer: @unchecked Sendable {
 
     public func send(envelope: Bridge_Envelope) -> Bool {
         lock.lock()
-        defer { lock.unlock() }
-        return activeConnection?.send(envelope: envelope) ?? false
+        let conns = Array(activeConnections.values)
+        lock.unlock()
+        var anySent = false
+        for conn in conns {
+            if conn.send(envelope: envelope) {
+                anySent = true
+            }
+        }
+        return anySent
     }
 
     public func stop() {
@@ -193,8 +208,10 @@ public final class BridgeSocketServer: @unchecked Sendable {
         defer { lock.unlock() }
         if isRunning {
             isRunning = false
-            activeConnection?.closeConnection()
-            activeConnection = nil
+            for conn in activeConnections.values {
+                conn.closeConnection()
+            }
+            activeConnections.removeAll()
             #if os(Linux)
             _ = Glibc.close(serverFd)
             #else

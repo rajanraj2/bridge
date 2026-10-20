@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.16] - 2026-10-21
+
+### Added
+- **Multi-Device Mesh Topology & Multi-Peer Connection Pool**:
+  - Upgraded macOS and Android socket servers to maintain concurrent multi-peer connection pools instead of single connection slots.
+  - Added mesh routing metadata (`target_device_id`, `visited_device_ids`) to `Envelope` schema.
+  - Implemented automatic mesh relaying so clipboard updates broadcast across all connected peers (Android, multiple Macs, and future iPad client).
+  - Eliminated echo loops and rebroadcast storms via `visited_device_ids` hop tracking and SHA-256 content deduplication.
+
+---
 ## [0.1.15] - 2026-10-21
 
 ### Added

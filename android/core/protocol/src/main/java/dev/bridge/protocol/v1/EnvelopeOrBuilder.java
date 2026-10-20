@@ -71,6 +71,43 @@ public interface EnvelopeOrBuilder extends
   int getProtocolMinor();
 
   /**
+   * <code>string target_device_id = 8;</code>
+   * @return The targetDeviceId.
+   */
+  java.lang.String getTargetDeviceId();
+  /**
+   * <code>string target_device_id = 8;</code>
+   * @return The bytes for targetDeviceId.
+   */
+  com.google.protobuf.ByteString
+      getTargetDeviceIdBytes();
+
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @return A list containing the visitedDeviceIds.
+   */
+  java.util.List<java.lang.String>
+      getVisitedDeviceIdsList();
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @return The count of visitedDeviceIds.
+   */
+  int getVisitedDeviceIdsCount();
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @param index The index of the element to return.
+   * @return The visitedDeviceIds at the given index.
+   */
+  java.lang.String getVisitedDeviceIds(int index);
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @param index The index of the value to return.
+   * @return The bytes of the visitedDeviceIds at the given index.
+   */
+  com.google.protobuf.ByteString
+      getVisitedDeviceIdsBytes(int index);
+
+  /**
    * <code>.bridge.v1.Hello hello = 10;</code>
    * @return Whether the hello field is set.
    */

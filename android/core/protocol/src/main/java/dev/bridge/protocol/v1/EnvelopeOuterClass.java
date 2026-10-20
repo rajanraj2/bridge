@@ -45,30 +45,31 @@ public final class EnvelopeOuterClass extends com.google.protobuf.GeneratedFile 
       "g.proto\032\031bridge/v1/heartbeat.proto\032\025brid" +
       "ge/v1/error.proto\032\031bridge/v1/clipboard.p" +
       "roto\032\034bridge/v1/notification.proto\032\030brid" +
-      "ge/v1/transfer.proto\"\355\006\n\010Envelope\022\022\n\nmes" +
+      "ge/v1/transfer.proto\"\243\007\n\010Envelope\022\022\n\nmes" +
       "sage_id\030\001 \001(\t\022\022\n\nsession_id\030\002 \001(\t\022\030\n\020sen" +
       "der_device_id\030\003 \001(\t\022\027\n\017sequence_number\030\004" +
       " \001(\004\022\032\n\022created_at_unix_ms\030\005 \001(\003\022\026\n\016prot" +
       "ocol_major\030\006 \001(\r\022\026\n\016protocol_minor\030\007 \001(\r" +
-      "\022!\n\005hello\030\n \001(\0132\020.bridge.v1.HelloH\000\022(\n\th" +
-      "ello_ack\030\013 \001(\0132\023.bridge.v1.HelloAckH\000\022,\n" +
-      "\007pairing\030\014 \001(\0132\031.bridge.v1.PairingMessag" +
-      "eH\000\022)\n\theartbeat\030\r \001(\0132\024.bridge.v1.Heart" +
-      "beatH\000\022!\n\005error\030\016 \001(\0132\020.bridge.v1.ErrorH" +
-      "\000\0226\n\020clipboard_update\030\024 \001(\0132\032.bridge.v1." +
-      "ClipboardUpdateH\000\022:\n\022notification_event\030" +
-      "\025 \001(\0132\034.bridge.v1.NotificationEventH\000\022<\n" +
-      "\023notification_action\030\026 \001(\0132\035.bridge.v1.N" +
-      "otificationActionH\000\022*\n\nshare_text\030\027 \001(\0132" +
-      "\024.bridge.v1.ShareTextH\000\0226\n\014file_request\030" +
-      "\036 \001(\0132\036.bridge.v1.FileTransferRequestH\000\022" +
-      "4\n\013file_accept\030\037 \001(\0132\035.bridge.v1.FileTra" +
-      "nsferAcceptH\000\022*\n\nfile_chunk\030  \001(\0132\024.brid" +
-      "ge.v1.FileChunkH\000\0228\n\rfile_complete\030! \001(\013" +
-      "2\037.bridge.v1.FileTransferCompleteH\000\0224\n\013f" +
-      "ile_cancel\030\" \001(\0132\035.bridge.v1.FileTransfe" +
-      "rCancelH\000B\t\n\007payloadB$\n\026dev.bridge.proto" +
-      "col.v1P\001\272\002\007Bridge_b\006proto3"
+      "\022\030\n\020target_device_id\030\010 \001(\t\022\032\n\022visited_de" +
+      "vice_ids\030\t \003(\t\022!\n\005hello\030\n \001(\0132\020.bridge.v" +
+      "1.HelloH\000\022(\n\thello_ack\030\013 \001(\0132\023.bridge.v1" +
+      ".HelloAckH\000\022,\n\007pairing\030\014 \001(\0132\031.bridge.v1" +
+      ".PairingMessageH\000\022)\n\theartbeat\030\r \001(\0132\024.b" +
+      "ridge.v1.HeartbeatH\000\022!\n\005error\030\016 \001(\0132\020.br" +
+      "idge.v1.ErrorH\000\0226\n\020clipboard_update\030\024 \001(" +
+      "\0132\032.bridge.v1.ClipboardUpdateH\000\022:\n\022notif" +
+      "ication_event\030\025 \001(\0132\034.bridge.v1.Notifica" +
+      "tionEventH\000\022<\n\023notification_action\030\026 \001(\013" +
+      "2\035.bridge.v1.NotificationActionH\000\022*\n\nsha" +
+      "re_text\030\027 \001(\0132\024.bridge.v1.ShareTextH\000\0226\n" +
+      "\014file_request\030\036 \001(\0132\036.bridge.v1.FileTran" +
+      "sferRequestH\000\0224\n\013file_accept\030\037 \001(\0132\035.bri" +
+      "dge.v1.FileTransferAcceptH\000\022*\n\nfile_chun" +
+      "k\030  \001(\0132\024.bridge.v1.FileChunkH\000\0228\n\rfile_" +
+      "complete\030! \001(\0132\037.bridge.v1.FileTransferC" +
+      "ompleteH\000\0224\n\013file_cancel\030\" \001(\0132\035.bridge." +
+      "v1.FileTransferCancelH\000B\t\n\007payloadB$\n\026de" +
+      "v.bridge.protocol.v1P\001\272\002\007Bridge_b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -86,7 +87,7 @@ public final class EnvelopeOuterClass extends com.google.protobuf.GeneratedFile 
     internal_static_bridge_v1_Envelope_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_bridge_v1_Envelope_descriptor,
-        new java.lang.String[] { "MessageId", "SessionId", "SenderDeviceId", "SequenceNumber", "CreatedAtUnixMs", "ProtocolMajor", "ProtocolMinor", "Hello", "HelloAck", "Pairing", "Heartbeat", "Error", "ClipboardUpdate", "NotificationEvent", "NotificationAction", "ShareText", "FileRequest", "FileAccept", "FileChunk", "FileComplete", "FileCancel", "Payload", });
+        new java.lang.String[] { "MessageId", "SessionId", "SenderDeviceId", "SequenceNumber", "CreatedAtUnixMs", "ProtocolMajor", "ProtocolMinor", "TargetDeviceId", "VisitedDeviceIds", "Hello", "HelloAck", "Pairing", "Heartbeat", "Error", "ClipboardUpdate", "NotificationEvent", "NotificationAction", "ShareText", "FileRequest", "FileAccept", "FileChunk", "FileComplete", "FileCancel", "Payload", });
     descriptor.resolveAllFeaturesImmutable();
     dev.bridge.protocol.v1.Session.getDescriptor();
     dev.bridge.protocol.v1.Pairing.getDescriptor();

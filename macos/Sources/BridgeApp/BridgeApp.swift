@@ -54,7 +54,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     @Published public var lastTransferLog: String? = nil
     @Published public var exportedDiagnosticBundle: String? = nil
-    public let appVersion = "0.1.15"
+    public let appVersion = "0.1.16"
     @Published public var availableUpdate: UpdateInfo? = nil
     @Published public var updateStatusText: String? = nil
     @Published public var isCheckingUpdates: Bool = false
@@ -231,8 +231,13 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
                     self.lastPasteboardChangeCount = NSPasteboard.general.changeCount
-                    self.lastTransferLog = "Clipboard received from phone: \(text.prefix(25))..."
-                    let alertScript = "display notification \"\(text.prefix(40))\" with title \"Clipboard Synced\" subtitle \"From Android Phone\""
+                    self.lastTransferLog = "Clipboard received: \(text.prefix(25))..."
+                    var relayEnv = envelope
+                    if !relayEnv.visitedDeviceIds.contains(self.deviceId) {
+                        relayEnv.visitedDeviceIds.append(self.deviceId)
+                        self.sendEnvelope(relayEnv)
+                    }
+                    let alertScript = "display notification \"\(text.prefix(40))\" with title \"Clipboard Synced\" subtitle \"From Mesh Peer\""
                     if let appleScript = NSAppleScript(source: alertScript) {
                         var err: NSDictionary?
                         appleScript.executeAndReturnError(&err)
