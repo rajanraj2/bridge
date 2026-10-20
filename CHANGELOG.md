@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.15] - 2026-10-21
+
+### Added
+- **Observability & Download Analytics**:
+  - Added real-time GitHub Releases download counter badge to `README.md`.
+  - Added `scripts/collect_release_metrics.py` reporting cumulative and per-asset downloads for APK, DMG, PKG, and ZIP packages.
+  - Implemented privacy-preserving `TelemetryManager` on macOS and Android to record installation lifecycle metrics without PII.
+
+---
 ## [0.1.14] - 2026-10-21
 
 ### Added
