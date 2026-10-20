@@ -42,39 +42,58 @@ class BridgeForegroundService : Service() {
             }
             lastSentText = text
             println("BridgeForegroundService: dispatchLocalCopy: '$text'")
-            if (onClipboardSyncRequested != null) {
-                onClipboardSyncRequested?.invoke(text)
-            } else {
-                try {
-                    val shaBytes = IdentityManager.sha256(text.toByteArray(Charsets.UTF_8))
-                    val update = ClipboardUpdate.newBuilder()
-                        .setEventId("clip-" + UUID.randomUUID().toString())
-                        .setOriginDeviceId(localDeviceId)
-                        .setOriginEventId("bg-" + System.currentTimeMillis())
-                        .setContentType("text/plain")
-                        .setText(text)
-                        .setContentSha256(ByteString.copyFrom(shaBytes))
-                        .setCreatedAtUnixMs(System.currentTimeMillis())
-                        .build()
+            // 1. Direct TCP transmission to Mac
+            try {
+                val shaBytes = IdentityManager.sha256(text.toByteArray(Charsets.UTF_8))
+                val update = ClipboardUpdate.newBuilder()
+                    .setEventId("clip-" + UUID.randomUUID().toString().lowercase())
+                    .setOriginDeviceId(localDeviceId)
+                    .setOriginEventId("bg-" + System.currentTimeMillis())
+                    .setContentType("text/plain")
+                    .setText(text)
+                    .setContentSha256(ByteString.copyFrom(shaBytes))
+                    .setCreatedAtUnixMs(System.currentTimeMillis())
+                    .build()
 
-                    val env = Envelope.newBuilder()
-                        .setMessageId(UUID.randomUUID().toString())
-                        .setSessionId("live-session")
-                        .setSenderDeviceId(localDeviceId)
-                        .setProtocolMajor(1)
-                        .setProtocolMinor(0)
-                        .setCreatedAtUnixMs(System.currentTimeMillis())
-                        .setClipboardUpdate(update)
-                        .build()
+                val env = Envelope.newBuilder()
+                    .setMessageId(UUID.randomUUID().toString().lowercase())
+                    .setSessionId("live-session")
+                    .setSenderDeviceId(localDeviceId)
+                    .setProtocolMajor(1)
+                    .setProtocolMinor(0)
+                    .setCreatedAtUnixMs(System.currentTimeMillis())
+                    .setClipboardUpdate(update)
+                    .build()
 
-                    BridgeConnectionManager.sendEnvelope(env) { sent ->
-                        println("BridgeForegroundService: direct sendEnvelope sent=$sent")
-                    }
-                } catch (e: Exception) {
-                    println("BridgeForegroundService: direct send error: ${e.message}")
+                BridgeConnectionManager.sendEnvelope(env) { sent ->
+                    println("BridgeForegroundService: direct sendEnvelope sent=$sent")
                 }
+            } catch (e: Exception) {
+                println("BridgeForegroundService: direct send error: ${e.message}")
+            }
+
+            // 2. Also notify UI if open
+            try {
+                onClipboardSyncRequested?.invoke(text)
+            } catch (ignored: Exception) {}
+        }
+
+        private var lastTrampolineLaunchTime = 0L
+
+        fun triggerTrampolineFromService(context: Context) {
+            val now = System.currentTimeMillis()
+            if (now - lastTrampolineLaunchTime < 1500) return
+            lastTrampolineLaunchTime = now
+            try {
+                val intent = Intent(context, ClipboardSyncActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                println("BridgeForegroundService: triggerTrampoline error: ${e.message}")
             }
         }
+
         fun startService(context: Context, peerName: String) {
             val intent = Intent(context, BridgeForegroundService::class.java).apply {
                 action = ACTION_START
@@ -131,19 +150,10 @@ class BridgeForegroundService : Service() {
                         dispatchLocalCopy(text)
                     }
                 } else {
-                    val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                    }
-                    startActivity(intent)
+                    triggerTrampolineFromService(this)
                 }
             } catch (e: Exception) {
-                println("BridgeForegroundService: clip listener exception: ${e.message}")
-                try {
-                    val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                    }
-                    startActivity(intent)
-                } catch (ignored: Exception) {}
+                triggerTrampolineFromService(this)
             }
         }
         cm.addPrimaryClipChangedListener(clipboardListener)
@@ -157,17 +167,14 @@ class BridgeForegroundService : Service() {
         Thread {
             try {
                 val timeStamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
-                val process = Runtime.getRuntime().exec(arrayOf("logcat", "-T", timeStamp, "ClipboardService:E", "ClipboardOverlay:V", "*:S"))
+                val process = Runtime.getRuntime().exec(arrayOf("logcat", "-T", timeStamp, "ClipboardService:E", "*:S"))
                 val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     val l = line ?: continue
-                    if (l.contains("ClipboardService") || l.contains("ClipboardOverlay")) {
-                        println("BridgeForegroundService: logcat detected copy event: $l")
-                        val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        }
-                        startActivity(intent)
+                    if (l.contains("ClipboardService") && l.contains("Denying clipboard access to dev.bridge.app")) {
+                        println("BridgeForegroundService: logcat detected copy denial for dev.bridge.app: $l")
+                        triggerTrampolineFromService(this)
                     }
                 }
             } catch (e: Exception) {
