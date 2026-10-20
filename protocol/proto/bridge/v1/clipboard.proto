@@ -10,8 +10,10 @@ message ClipboardUpdate {
   string event_id = 1;
   string origin_device_id = 2;
   string origin_event_id = 3;
-  string content_type = 4; // MVP: text/plain
+  string content_type = 4; // text/plain, image/png, image/jpeg, application/octet-stream
   string text = 5;
   bytes content_sha256 = 6;
   int64 created_at_unix_ms = 7;
+  bytes image_data = 8;
+  string file_name = 9;
 }

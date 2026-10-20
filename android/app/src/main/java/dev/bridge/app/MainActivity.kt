@@ -188,7 +188,7 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-    val currentAppVersion = "0.1.16"
+    val currentAppVersion = "0.1.17"
     val coroutineScope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -261,18 +261,27 @@ fun BridgeDashboard(
                 if (envelope.hasClipboardUpdate()) {
                     val update = envelope.clipboardUpdate
                     val text = update.text
-                    clipboardProcessor.handleRemoteUpdate(envelope, localDeviceId)
+                    val hasImage = !update.imageData.isEmpty
+                    clipboardProcessor.handleRemotePayload(envelope, localDeviceId)
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         try {
-                            val clip = ClipData.newPlainText("Bridge", text)
-                            clipboardManager.setPrimaryClip(clip)
-                            lastReceivedClipboardText = text
-                            lastActionLog = "Received from Mac: ${text.take(30)}..."
+                            if (hasImage) {
+                                val cacheFile = java.io.File(context.cacheDir, "received_clipboard.png")
+                                cacheFile.writeBytes(update.imageData.toByteArray())
+                                lastReceivedClipboardText = "[Image: ${update.imageData.size() / 1024} KB]"
+                                lastActionLog = "Received image (${update.imageData.size() / 1024} KB)"
+                            } else if (!text.isNullOrBlank()) {
+                                val clip = ClipData.newPlainText("Bridge", text)
+                                clipboardManager.setPrimaryClip(clip)
+                                lastReceivedClipboardText = text
+                                lastActionLog = "Received from Mac: ${text.take(30)}..."
+                            }
                         } catch (e: Exception) {
                             println("MainActivity: setPrimaryClip error: ${e.message}")
                         }
                     }
-                    BridgeForegroundService.notifyReceivedClipboard(context, text)
+                    val notifText = if (hasImage) "[Image Received]" else text
+                    BridgeForegroundService.notifyReceivedClipboard(context, notifText)
                 }
                 if (envelope.hasShareText()) {
                     textSharingService.handleIncomingShare(envelope)

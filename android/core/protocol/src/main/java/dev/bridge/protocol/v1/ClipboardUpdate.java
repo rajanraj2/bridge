@@ -34,6 +34,8 @@ private static final long serialVersionUID = 0L;
     contentType_ = "";
     text_ = "";
     contentSha256_ = com.google.protobuf.ByteString.EMPTY;
+    imageData_ = com.google.protobuf.ByteString.EMPTY;
+    fileName_ = "";
   }
 
   public static final com.google.protobuf.Descriptors.Descriptor
@@ -176,7 +178,7 @@ private static final long serialVersionUID = 0L;
   private volatile java.lang.Object contentType_ = "";
   /**
    * <pre>
-   * MVP: text/plain
+   * text/plain, image/png, image/jpeg, application/octet-stream
    * </pre>
    *
    * <code>string content_type = 4;</code>
@@ -197,7 +199,7 @@ private static final long serialVersionUID = 0L;
   }
   /**
    * <pre>
-   * MVP: text/plain
+   * text/plain, image/png, image/jpeg, application/octet-stream
    * </pre>
    *
    * <code>string content_type = 4;</code>
@@ -279,6 +281,56 @@ private static final long serialVersionUID = 0L;
     return createdAtUnixMs_;
   }
 
+  public static final int IMAGE_DATA_FIELD_NUMBER = 8;
+  private com.google.protobuf.ByteString imageData_ = com.google.protobuf.ByteString.EMPTY;
+  /**
+   * <code>bytes image_data = 8;</code>
+   * @return The imageData.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString getImageData() {
+    return imageData_;
+  }
+
+  public static final int FILE_NAME_FIELD_NUMBER = 9;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object fileName_ = "";
+  /**
+   * <code>string file_name = 9;</code>
+   * @return The fileName.
+   */
+  @java.lang.Override
+  public java.lang.String getFileName() {
+    java.lang.Object ref = fileName_;
+    if (ref instanceof java.lang.String) {
+      return (java.lang.String) ref;
+    } else {
+      com.google.protobuf.ByteString bs = 
+          (com.google.protobuf.ByteString) ref;
+      java.lang.String s = bs.toStringUtf8();
+      fileName_ = s;
+      return s;
+    }
+  }
+  /**
+   * <code>string file_name = 9;</code>
+   * @return The bytes for fileName.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString
+      getFileNameBytes() {
+    java.lang.Object ref = fileName_;
+    if (ref instanceof java.lang.String) {
+      com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString.copyFromUtf8(
+              (java.lang.String) ref);
+      fileName_ = b;
+      return b;
+    } else {
+      return (com.google.protobuf.ByteString) ref;
+    }
+  }
+
   private byte memoizedIsInitialized = -1;
   @java.lang.Override
   public final boolean isInitialized() {
@@ -314,6 +366,12 @@ private static final long serialVersionUID = 0L;
     if (createdAtUnixMs_ != 0L) {
       output.writeInt64(7, createdAtUnixMs_);
     }
+    if (!imageData_.isEmpty()) {
+      output.writeBytes(8, imageData_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(fileName_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 9, fileName_);
+    }
     getUnknownFields().writeTo(output);
   }
   private int computeSerializedSize_0() {
@@ -340,6 +398,13 @@ private static final long serialVersionUID = 0L;
     if (createdAtUnixMs_ != 0L) {
       size += com.google.protobuf.CodedOutputStream
         .computeInt64Size(7, createdAtUnixMs_);
+    }
+    if (!imageData_.isEmpty()) {
+      size += com.google.protobuf.CodedOutputStream
+        .computeBytesSize(8, imageData_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(fileName_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(9, fileName_);
     }
     return size;
   }
@@ -379,6 +444,10 @@ private static final long serialVersionUID = 0L;
         .equals(other.getContentSha256())) return false;
     if (getCreatedAtUnixMs()
         != other.getCreatedAtUnixMs()) return false;
+    if (!getImageData()
+        .equals(other.getImageData())) return false;
+    if (!getFileName()
+        .equals(other.getFileName())) return false;
     if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
@@ -405,6 +474,10 @@ private static final long serialVersionUID = 0L;
     hash = (37 * hash) + CREATED_AT_UNIX_MS_FIELD_NUMBER;
     hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
         getCreatedAtUnixMs());
+    hash = (37 * hash) + IMAGE_DATA_FIELD_NUMBER;
+    hash = (53 * hash) + getImageData().hashCode();
+    hash = (37 * hash) + FILE_NAME_FIELD_NUMBER;
+    hash = (53 * hash) + getFileName().hashCode();
     hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
@@ -543,6 +616,8 @@ private static final long serialVersionUID = 0L;
       text_ = "";
       contentSha256_ = com.google.protobuf.ByteString.EMPTY;
       createdAtUnixMs_ = 0L;
+      imageData_ = com.google.protobuf.ByteString.EMPTY;
+      fileName_ = "";
       return this;
     }
 
@@ -597,6 +672,12 @@ private static final long serialVersionUID = 0L;
       if (((from_bitField0_ & 0x00000040) != 0)) {
         result.createdAtUnixMs_ = createdAtUnixMs_;
       }
+      if (((from_bitField0_ & 0x00000080) != 0)) {
+        result.imageData_ = imageData_;
+      }
+      if (((from_bitField0_ & 0x00000100) != 0)) {
+        result.fileName_ = fileName_;
+      }
     }
 
     @java.lang.Override
@@ -641,6 +722,14 @@ private static final long serialVersionUID = 0L;
       }
       if (other.getCreatedAtUnixMs() != 0L) {
         setCreatedAtUnixMs(other.getCreatedAtUnixMs());
+      }
+      if (!other.getImageData().isEmpty()) {
+        setImageData(other.getImageData());
+      }
+      if (!other.getFileName().isEmpty()) {
+        fileName_ = other.fileName_;
+        bitField0_ |= 0x00000100;
+        onChanged();
       }
       this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
@@ -701,6 +790,16 @@ private static final long serialVersionUID = 0L;
               bitField0_ |= 0x00000040;
               break;
             } // case 56
+            case 66: {
+              imageData_ = input.readBytes();
+              bitField0_ |= 0x00000080;
+              break;
+            } // case 66
+            case 74: {
+              fileName_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000100;
+              break;
+            } // case 74
             default: {
               if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                 done = true; // was an endgroup tag
@@ -937,7 +1036,7 @@ private static final long serialVersionUID = 0L;
     private java.lang.Object contentType_ = "";
     /**
      * <pre>
-     * MVP: text/plain
+     * text/plain, image/png, image/jpeg, application/octet-stream
      * </pre>
      *
      * <code>string content_type = 4;</code>
@@ -957,7 +1056,7 @@ private static final long serialVersionUID = 0L;
     }
     /**
      * <pre>
-     * MVP: text/plain
+     * text/plain, image/png, image/jpeg, application/octet-stream
      * </pre>
      *
      * <code>string content_type = 4;</code>
@@ -978,7 +1077,7 @@ private static final long serialVersionUID = 0L;
     }
     /**
      * <pre>
-     * MVP: text/plain
+     * text/plain, image/png, image/jpeg, application/octet-stream
      * </pre>
      *
      * <code>string content_type = 4;</code>
@@ -995,7 +1094,7 @@ private static final long serialVersionUID = 0L;
     }
     /**
      * <pre>
-     * MVP: text/plain
+     * text/plain, image/png, image/jpeg, application/octet-stream
      * </pre>
      *
      * <code>string content_type = 4;</code>
@@ -1009,7 +1108,7 @@ private static final long serialVersionUID = 0L;
     }
     /**
      * <pre>
-     * MVP: text/plain
+     * text/plain, image/png, image/jpeg, application/octet-stream
      * </pre>
      *
      * <code>string content_type = 4;</code>
@@ -1158,6 +1257,110 @@ private static final long serialVersionUID = 0L;
     public Builder clearCreatedAtUnixMs() {
       bitField0_ = (bitField0_ & ~0x00000040);
       createdAtUnixMs_ = 0L;
+      onChanged();
+      return this;
+    }
+
+    private com.google.protobuf.ByteString imageData_ = com.google.protobuf.ByteString.EMPTY;
+    /**
+     * <code>bytes image_data = 8;</code>
+     * @return The imageData.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString getImageData() {
+      return imageData_;
+    }
+    /**
+     * <code>bytes image_data = 8;</code>
+     * @param value The imageData to set.
+     * @return This builder for chaining.
+     */
+    public Builder setImageData(com.google.protobuf.ByteString value) {
+      java.util.Objects.requireNonNull(value);
+      imageData_ = value;
+      bitField0_ |= 0x00000080;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>bytes image_data = 8;</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearImageData() {
+      bitField0_ = (bitField0_ & ~0x00000080);
+      imageData_ = getDefaultInstance().getImageData();
+      onChanged();
+      return this;
+    }
+
+    private java.lang.Object fileName_ = "";
+    /**
+     * <code>string file_name = 9;</code>
+     * @return The fileName.
+     */
+    public java.lang.String getFileName() {
+      java.lang.Object ref = fileName_;
+      if (!(ref instanceof java.lang.String)) {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        fileName_ = s;
+        return s;
+      } else {
+        return (java.lang.String) ref;
+      }
+    }
+    /**
+     * <code>string file_name = 9;</code>
+     * @return The bytes for fileName.
+     */
+    public com.google.protobuf.ByteString
+        getFileNameBytes() {
+      java.lang.Object ref = fileName_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        fileName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    /**
+     * <code>string file_name = 9;</code>
+     * @param value The fileName to set.
+     * @return This builder for chaining.
+     */
+    public Builder setFileName(
+        java.lang.String value) {
+      java.util.Objects.requireNonNull(value);
+      fileName_ = value;
+      bitField0_ |= 0x00000100;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string file_name = 9;</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearFileName() {
+      fileName_ = getDefaultInstance().getFileName();
+      bitField0_ = (bitField0_ & ~0x00000100);
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string file_name = 9;</code>
+     * @param value The bytes for fileName to set.
+     * @return This builder for chaining.
+     */
+    public Builder setFileNameBytes(
+        com.google.protobuf.ByteString value) {
+      java.util.Objects.requireNonNull(value);
+      checkByteStringIsUtf8(value);
+      fileName_ = value;
+      bitField0_ |= 0x00000100;
       onChanged();
       return this;
     }
