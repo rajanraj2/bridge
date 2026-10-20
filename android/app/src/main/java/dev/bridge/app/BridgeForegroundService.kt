@@ -21,10 +21,13 @@ class BridgeForegroundService : Service() {
         const val ACTION_START = "dev.bridge.app.action.START"
         const val ACTION_STOP = "dev.bridge.app.action.STOP"
         const val ACTION_SYNC_CLIPBOARD = "dev.bridge.app.action.SYNC_CLIPBOARD"
+        const val ACTION_APPLY_CLIPBOARD = "dev.bridge.app.action.APPLY_CLIPBOARD"
         const val EXTRA_PEER_NAME = "extra_peer_name"
+        const val EXTRA_CLIPBOARD_TEXT = "extra_clipboard_text"
 
         var onClipboardSyncRequested: ((String) -> Unit)? = null
         var isServiceRunning: Boolean = false
+        var lastReceivedText: String? = null
 
         fun startService(context: Context, peerName: String) {
             val intent = Intent(context, BridgeForegroundService::class.java).apply {
@@ -43,6 +46,19 @@ class BridgeForegroundService : Service() {
                 action = ACTION_STOP
             }
             context.startService(intent)
+        }
+
+        fun notifyReceivedClipboard(context: Context, text: String) {
+            lastReceivedText = text
+            val intent = Intent(context, BridgeForegroundService::class.java).apply {
+                action = ACTION_APPLY_CLIPBOARD
+                putExtra(EXTRA_CLIPBOARD_TEXT, text)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
     }
 
@@ -71,7 +87,6 @@ class BridgeForegroundService : Service() {
                 }
             }
             ACTION_SYNC_CLIPBOARD -> {
-                // Reads current clipboard from notification action and dispatches
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 val clip = cm?.primaryClip
                 if (clip != null && clip.itemCount > 0) {
@@ -80,6 +95,22 @@ class BridgeForegroundService : Service() {
                         onClipboardSyncRequested?.invoke(text)
                     }
                 }
+            }
+            ACTION_APPLY_CLIPBOARD -> {
+                val text = intent.getStringExtra(EXTRA_CLIPBOARD_TEXT) ?: lastReceivedText
+                if (!text.isNullOrBlank()) {
+                    lastReceivedText = text
+                    try {
+                        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Bridge", text)
+                        cm?.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(this, "📋 Copied from Mac to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        println("BridgeForegroundService: setPrimaryClip error: ${e.message}")
+                    }
+                }
+                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                manager.notify(NOTIFICATION_ID, buildForegroundNotification(currentPeerName))
             }
             ACTION_STOP -> {
                 isServiceRunning = false
@@ -125,15 +156,33 @@ class BridgeForegroundService : Service() {
             syncIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Bridge Connected")
-            .setContentText("Connected to $peerName")
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
-            .addAction(android.R.drawable.ic_menu_send, "📋 Send Copied Text to Mac", syncPendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        if (!lastReceivedText.isNullOrBlank()) {
+            builder.setContentTitle("Bridge: Copied on Mac")
+                .setContentText(lastReceivedText!!.take(60))
+
+            val copyIntent = Intent(this, BridgeForegroundService::class.java).apply {
+                action = ACTION_APPLY_CLIPBOARD
+                putExtra(EXTRA_CLIPBOARD_TEXT, lastReceivedText)
+            }
+            val copyPendingIntent = PendingIntent.getService(
+                this,
+                2,
+                copyIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(android.R.drawable.ic_menu_edit, "📋 Copy to Clipboard", copyPendingIntent)
+        } else {
+            builder.setContentTitle("Bridge Connected")
+                .setContentText("Connected to $peerName")
+        }
+
+        builder.addAction(android.R.drawable.ic_menu_send, "📤 Send Phone Clipboard", syncPendingIntent)
+        return builder.build()
     }
 }

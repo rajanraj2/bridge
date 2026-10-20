@@ -31,6 +31,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,8 +146,14 @@ fun BridgeDashboard(
     val clipboardAdapter = remember {
         object : ClipboardDestinationAdapter {
             override fun setClipboardText(text: String) {
-                val clip = ClipData.newPlainText("Bridge", text)
-                clipboardManager.setPrimaryClip(clip)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    try {
+                        val clip = ClipData.newPlainText("Bridge", text)
+                        clipboardManager.setPrimaryClip(clip)
+                    } catch (e: Exception) {
+                        println("clipboardAdapter: setPrimaryClip error: ${e.message}")
+                    }
+                }
             }
         }
     }
@@ -175,6 +182,7 @@ fun BridgeDashboard(
     var tailscaleHostInput by remember { mutableStateOf("") }
     var targetMacIpInput by remember { mutableStateOf("192.168.1.5") }
     var lastActionLog by remember { mutableStateOf<String?>(null) }
+    var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
 
     var shareInputText by remember { mutableStateOf("") }
@@ -195,7 +203,21 @@ fun BridgeDashboard(
 
             override fun onEnvelopeReceived(envelope: Envelope) {
                 if (envelope.hasClipboardUpdate()) {
+                    val update = envelope.clipboardUpdate
+                    val text = update.text
                     clipboardProcessor.handleRemoteUpdate(envelope, localDeviceId)
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        try {
+                            val clip = ClipData.newPlainText("Bridge", text)
+                            clipboardManager.setPrimaryClip(clip)
+                            lastReceivedClipboardText = text
+                            lastActionLog = "Received from Mac: ${text.take(30)}..."
+                            android.widget.Toast.makeText(context, "📋 Synced from Mac!", android.widget.Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            println("MainActivity: setPrimaryClip error: ${e.message}")
+                        }
+                    }
+                    BridgeForegroundService.notifyReceivedClipboard(context, text)
                 }
                 if (envelope.hasShareText()) {
                     textSharingService.handleIncomingShare(envelope)
@@ -231,6 +253,22 @@ fun BridgeDashboard(
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (!BridgeConnectionManager.isConnected && targetMacIpInput.isNotBlank()) {
+            BridgeConnectionManager.connectToMac(targetMacIpInput.trim(), 54884) { success ->
+                if (success) {
+                    val hello = Envelope.newBuilder()
+                        .setMessageId("hello-auto")
+                        .setSessionId("live-session")
+                        .setSenderDeviceId(localDeviceId)
+                        .setProtocolMajor(1)
+                        .setProtocolMinor(0)
+                        .build()
+                    BridgeConnectionManager.sendEnvelope(hello)
+                }
+            }
+        }
+    }
     // Hook up background notification action sync
     BridgeForegroundService.onClipboardSyncRequested = { text ->
         val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = true)
@@ -852,10 +890,41 @@ fun BridgeDashboard(
                     ) {
                         Text("📋 Send Current Clipboard to Mac")
                     }
+
+                    val receivedText = lastReceivedClipboardText
+                    if (!receivedText.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("📥 Received from Mac:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = receivedText,
+                                    fontSize = 12.sp,
+                                    maxLines = 3,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Button(
+                                    onClick = {
+                                        val clip = ClipData.newPlainText("Bridge", receivedText)
+                                        clipboardManager.setPrimaryClip(clip)
+                                        android.widget.Toast.makeText(context, "📋 Copied to phone clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                                        lastActionLog = "Copied to phone: ${receivedText.take(30)}..."
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("📋 Copy to Phone Clipboard")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // Permission Remediation Advisor Card

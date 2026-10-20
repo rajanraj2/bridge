@@ -5,8 +5,12 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/home/linuxbrew/.linuxbrew/bin:${P
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="${REPO_ROOT}/dist"
 APP_DIR="${DIST_DIR}/Bridge.app"
+VERSION="${1:-$(cat "${REPO_ROOT}/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "0.1.3")}"
+if [ -n "${GITHUB_REF_NAME:-}" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
+    VERSION="${GITHUB_REF_NAME#v}"
+fi
 
-echo "=== Packaging Bridge for macOS ==="
+echo "=== Packaging Bridge v${VERSION} for macOS ==="
 mkdir -p "${DIST_DIR}"
 rm -rf "${APP_DIR}"
 
@@ -53,9 +57,9 @@ cat <<EOF > "${APP_DIR}/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.2</string>
+    <string>${VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>${VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.5</string>
     <key>LSUIElement</key>
@@ -78,17 +82,18 @@ fi
 
 # 3. Create macOS ZIP archive
 cd "${DIST_DIR}"
-echo "Creating Bridge-v0.1.2-macOS.zip..."
-rm -f "Bridge-v0.1.2-macOS.zip"
-zip -r -q "Bridge-v0.1.2-macOS.zip" "Bridge.app"
+ZIP_NAME="Bridge-v${VERSION}-macOS.zip"
+echo "Creating ${ZIP_NAME}..."
+rm -f "${ZIP_NAME}"
+zip -r -q "${ZIP_NAME}" "Bridge.app"
 
 # 4. If running on macOS with hdiutil, generate DMG
 if command -v hdiutil >/dev/null 2>&1; then
-    echo "Creating Bridge-v0.1.2.dmg via hdiutil..."
-    rm -f "${DIST_DIR}/Bridge-v0.1.2.dmg"
-    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "${DIST_DIR}/Bridge-v0.1.2.dmg"
-    echo "Created dist/Bridge-v0.1.2.dmg"
+    DMG_NAME="Bridge-v${VERSION}.dmg"
+    echo "Creating ${DMG_NAME} via hdiutil..."
+    rm -f "${DIST_DIR}/${DMG_NAME}"
+    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "${DIST_DIR}/${DMG_NAME}"
+    echo "Created dist/${DMG_NAME}"
 fi
-
 echo "Successfully packaged macOS application in ${DIST_DIR}:"
 ls -lh "${DIST_DIR}"
