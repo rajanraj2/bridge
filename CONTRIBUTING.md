@@ -15,20 +15,37 @@ Thank you for your interest in contributing to Bridge! Bridge is an open-source,
 
 ## 2. Branching & Pull Request Workflow
 
-Bridge strictly enforces branch protections:
+Bridge strictly enforces branch protections both on GitHub and locally:
 
-1. **Never commit directly to `main`:** All development occurs in dedicated feature or fix branches.
-2. **Branch Naming:**
-   - Features: `feature/<milestone>-<short-description>` (e.g., `feature/m0-foundation`)
-   - Fixes: `fix/<short-description>`
-   - Documentation: `docs/<short-description>`
-3. **Pull Request Requirements:**
-   - Open a PR against `main`.
-   - Ensure all automated CI checks pass (Android build/tests, macOS build/tests, protocol validation).
-   - Document changes clearly in the PR description, referencing relevant milestones or issue IDs.
-   - Self-review the diff to verify that no unwanted temporary files, secrets, or unapproved dependencies are introduced.
-4. **Merge Policy:** Branches are merged into `main` via squash-merge or rebase-merge only after all validation and CI pipelines pass.
+### 2.1 Branch Protection Rules
+1. **Never commit directly to `main`**: Direct commits and direct pushes to `main` are blocked on GitHub and rejected locally by Git hooks.
+2. **Never merge locally into `main`**: Merging into `main` must only occur via GitHub Pull Requests after automated CI checks pass.
+3. **Local Hook Setup**:
+   To enforce these safeguards locally in your clone, run:
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+   This activates `.githooks/pre-commit`, `.githooks/pre-merge-commit`, and `.githooks/pre-push`, preventing accidental local commits, local merges, or pushes to `main`.
 
+### 2.2 Branch Naming Conventions
+- Features: `feature/<short-description>` (e.g., `feature/bluetooth-le-discovery`)
+- Bug fixes: `fix/<short-description>`
+- Documentation: `docs/<short-description>`
+
+### 2.3 Pull Request & Automated Release Labels
+All changes must be submitted via a Pull Request against `main`. When creating or reviewing a PR intended for a release, attach a release label:
+
+| Label | Effect on Merge | Example |
+|---|---|---|
+| `release:patch` or `patch` | Bumps patch version | `0.1.2` → `0.1.3` |
+| `release:minor` or `minor` | Bumps minor version | `0.1.2` → `0.2.0` |
+| `release:major` or `major` | Bumps major version | `0.1.2` → `1.0.0` |
+
+When a PR with a release label is merged into `main`:
+1. GitHub Actions automatically executes `scripts/bump_version.sh`.
+2. Creates and pushes the new release tag `vX.Y.Z`.
+3. Triggers `release.yml` to compile the Android APK, package the macOS DMG and ZIP, and publish the release with assets.
+4. If no release label is present, the PR is merged without triggering a new release.
 ---
 
 ## 3. Repository Structure

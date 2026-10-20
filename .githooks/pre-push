@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+while read local_ref local_sha remote_ref remote_sha; do
+    if [ "${remote_ref}" = "refs/heads/main" ]; then
+        echo "❌ ERROR: Direct push to 'main' is forbidden."
+        echo "Push your changes to a feature branch and open a Pull Request on GitHub:"
+        echo "   git push origin <your-feature-branch>"
+        exit 1
+    fi
+done
