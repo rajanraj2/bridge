@@ -22,7 +22,8 @@ class ClipboardSyncActivity : Activity() {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 val clip = cm?.primaryClip
                 if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0).text?.toString()
+                    val text = clip.getItemAt(0).coerceToText(this).toString()
+                    println("ClipboardSyncActivity: raw item coerced to text: '$text'")
                     if (!text.isNullOrBlank() && text != BridgeForegroundService.lastReceivedText) {
                         println("ClipboardSyncActivity: Captured clipboard on window focus: '$text'")
                         BridgeForegroundService.dispatchLocalCopy(text)
