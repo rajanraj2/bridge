@@ -8,6 +8,7 @@
 [![macOS CI](https://github.com/rajanraj2/bridge/actions/workflows/macos.yml/badge.svg)](https://github.com/rajanraj2/bridge/actions/workflows/macos.yml)
 [![Protocol CI](https://github.com/rajanraj2/bridge/actions/workflows/protocol.yml/badge.svg)](https://github.com/rajanraj2/bridge/actions/workflows/protocol.yml)
 [![Release](https://img.shields.io/github/v/release/rajanraj2/bridge?color=blue)](https://github.com/rajanraj2/bridge/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/rajanraj2/bridge/total?color=success&label=Downloads)](https://github.com/rajanraj2/bridge/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **Bridge** is an open-source, local-first continuity application connecting your Android phone and Mac seamlessly.

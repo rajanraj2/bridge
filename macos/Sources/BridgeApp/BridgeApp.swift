@@ -54,7 +54,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     @Published public var lastTransferLog: String? = nil
     @Published public var exportedDiagnosticBundle: String? = nil
-    public let appVersion = "0.1.14"
+    public let appVersion = "0.1.15"
     @Published public var availableUpdate: UpdateInfo? = nil
     @Published public var updateStatusText: String? = nil
     @Published public var isCheckingUpdates: Bool = false
