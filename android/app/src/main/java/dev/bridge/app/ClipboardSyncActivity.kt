@@ -13,8 +13,11 @@ class ClipboardSyncActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED)
         val wlp = window.attributes
-        wlp.flags = wlp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        wlp.flags = wlp.flags or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
         wlp.width = 1
         wlp.height = 1
         window.attributes = wlp
