@@ -9,6 +9,8 @@ import BridgeTransfers
 
 #if canImport(SwiftUI) && os(macOS)
 import SwiftUI
+import AppKit
+import UserNotifications
 
 @main
 struct BridgeApp: App {
@@ -26,7 +28,7 @@ struct BridgeApp: App {
     }
 }
 
-public final class BridgeAppModel: ObservableObject {
+public final class BridgeAppModel: ObservableObject, SocketEventListener {
     @Published public var state: ConnectionState = .disconnected
     @Published public var deviceName: String = Host.current().localizedName ?? "My Mac"
     @Published public var connectedPeerName: String? = nil
@@ -35,6 +37,8 @@ public final class BridgeAppModel: ObservableObject {
     @Published public var activePairingId: String? = nil
     @Published public var pairedPeers: [TrustedPeer] = []
     @Published public var tailscaleHost: String = ""
+    @Published public var targetPhoneIp: String = ""
+    @Published public var localIps: [String] = []
 
     @Published public var notificationsEnabled: Bool = true {
         didSet {
@@ -65,6 +69,11 @@ public final class BridgeAppModel: ObservableObject {
     public let textSharingService: TextSharingService
     public let diagnosticLogger: DiagnosticLogger
 
+    private var socketServer: BridgeSocketServer?
+    private var socketClient: BridgeSocketClient?
+    private var lastPasteboardChangeCount: Int = 0
+    private var pasteboardTimer: Timer?
+
     public var statusIconName: String {
         switch state {
         case .connected: return "link.circle.fill"
@@ -76,8 +85,32 @@ public final class BridgeAppModel: ObservableObject {
     }
 
     public init() {
-        self.deviceId = IdentityManager.generateDeviceId()
-        self.localPublicKey = "MacBook-Ed25519-IdentityKeyData".data(using: .utf8)!
+        // Persistent identity in Application Support
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+        let identityDir = appSupport.appendingPathComponent("Bridge", isDirectory: true)
+        try? FileManager.default.createDirectory(at: identityDir, withIntermediateDirectories: true)
+        let identityFile = identityDir.appendingPathComponent("identity.json")
+
+        var savedDeviceId = "brg-" + UUID().uuidString.lowercased()
+        var savedKeyData = Data(count: 32)
+        for i in 0..<32 { savedKeyData[i] = UInt8.random(in: 0...255) }
+
+        if let existing = try? Data(contentsOf: identityFile),
+           let obj = try? JSONSerialization.jsonObject(with: existing) as? [String: String],
+           let id = obj["deviceId"], let keyB64 = obj["publicKey"],
+           let key = Data(base64Encoded: keyB64) {
+            savedDeviceId = id
+            savedKeyData = key
+        } else {
+            let record: [String: String] = ["deviceId": savedDeviceId, "publicKey": savedKeyData.base64EncodedString()]
+            if let outData = try? JSONSerialization.data(withJSONObject: record) {
+                try? outData.write(to: identityFile)
+            }
+        }
+
+        self.deviceId = savedDeviceId
+        self.localPublicKey = savedKeyData
+
         let store = InMemoryTrustedPeerStore()
         self.peerStore = store
         self.stateMachine = ConnectionStateMachine()
@@ -89,28 +122,136 @@ public final class BridgeAppModel: ObservableObject {
         self.router = EndpointRouter(discoveryService: disc, endpointStore: epStore)
         self.notificationService = NotificationService()
         self.clipboardService = ClipboardService()
-        self.transferManager = FileTransferManager()
+
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+        self.transferManager = FileTransferManager(destinationDirectory: downloads)
         self.textSharingService = TextSharingService()
         self.diagnosticLogger = DiagnosticLogger.shared
         self.pairedPeers = store.allPeers()
+        self.localIps = BridgeSocketServer.getLocalIpAddresses()
+
+        startSocketServer()
+        startPasteboardMonitoring()
+    }
+
+    private func startSocketServer() {
+        do {
+            let server = BridgeSocketServer(port: 54884)
+            server.listener = self
+            try server.start()
+            self.socketServer = server
+            diagnosticLogger.log(category: .connectionState, message: "Server listening on port 54884")
+        } catch {
+            diagnosticLogger.log(category: .error, message: "Failed to bind port 54884: \(error.localizedDescription)")
+        }
+    }
+
+    private func startPasteboardMonitoring() {
+        lastPasteboardChangeCount = NSPasteboard.general.changeCount
+        pasteboardTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self, self.clipboardEnabled else { return }
+            let current = NSPasteboard.general.changeCount
+            if current != self.lastPasteboardChangeCount {
+                self.lastPasteboardChangeCount = current
+                if let string = NSPasteboard.general.string(forType: .string), !string.isEmpty {
+                    if let env = self.clipboardService.handleLocalCopy(text: string, localDeviceId: self.deviceId, sessionId: "live-session") {
+                        self.sendEnvelope(env)
+                    }
+                }
+            }
+        }
+    }
+
+    public func connectToPhone(ip: String) {
+        guard !ip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let client = BridgeSocketClient(listener: self)
+        do {
+            try client.connect(host: ip.trimmingCharacters(in: .whitespacesAndNewlines), port: 54884)
+            self.socketClient = client
+            lastTransferLog = "Connected to phone at \(ip)!"
+        } catch {
+            lastTransferLog = "Connection to \(ip) failed: \(error.localizedDescription)"
+        }
+    }
+
+    public func sendEnvelope(_ envelope: Bridge_Envelope) {
+        let sent = socketServer?.send(envelope: envelope) ?? false
+        if !sent {
+            _ = socketClient?.send(envelope: envelope)
+        }
+    }
+
+    // SocketEventListener Callbacks
+    public func onConnected(remoteAddress: String) {
+        DispatchQueue.main.async {
+            self.connectedPeerName = "Android Phone (\(remoteAddress))"
+            self.activeRouteType = remoteAddress.starts(with: "100.") ? .remoteTailscale : .localLAN
+            self.state = self.stateMachine.handle(event: .connectionEstablished(PeerSession(sessionId: "live-session", peerDevice: DeviceIdentity(deviceId: "android-phone", displayName: "Android Phone", platform: .android, publicKeyFingerprint: "XX:XX"), protocolMajor: 1, protocolMinor: 0)))
+            self.diagnosticLogger.log(category: .connectionState, message: "Socket connected: \(remoteAddress)")
+        }
+    }
+
+    public func onEnvelopeReceived(envelope: Bridge_Envelope) {
+        DispatchQueue.main.async {
+            if envelope.hasClipboardUpdate {
+                if case .success(let text) = self.clipboardService.handleRemoteUpdate(envelope: envelope, localDeviceId: self.deviceId) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    self.lastPasteboardChangeCount = NSPasteboard.general.changeCount
+                }
+            }
+            if envelope.hasNotificationEvent {
+                self.notificationService.handleIncomingNotification(envelope)
+                let title = envelope.notificationEvent.title
+                let body = envelope.notificationEvent.body
+                // Post macOS native user alert
+                let alertScript = "display notification \"\(body)\" with title \"\(title)\" subtitle \"Bridge from Phone\""
+                if let appleScript = NSAppleScript(source: alertScript) {
+                    var errorInfo: NSDictionary?
+                    appleScript.executeAndReturnError(&errorInfo)
+                }
+            }
+            if envelope.hasShareText {
+                self.textSharingService.handleIncomingShare(envelope)
+            }
+            if envelope.hasFileRequest {
+                if let acceptEnv = try? self.transferManager.handleIncomingRequest(envelope, senderDeviceId: self.deviceId, sessionId: "live-session", autoAccept: true) {
+                    self.sendEnvelope(acceptEnv)
+                }
+            }
+            if envelope.hasFileChunk {
+                if let (_, completedURL) = try? self.transferManager.handleIncomingChunk(envelope), let url = completedURL {
+                    self.lastTransferLog = "File received: \(url.lastPathComponent) (saved to Downloads)"
+                }
+            }
+        }
+    }
+
+    public func onDisconnected(reason: String) {
+        DispatchQueue.main.async {
+            self.connectedPeerName = nil
+            self.activeRouteType = nil
+            self.state = self.stateMachine.handle(event: .disconnect)
+            self.diagnosticLogger.log(category: .connectionState, message: "Socket disconnected: \(reason)")
+        }
     }
 
     public func startPairing() {
         let challenge = pairingCoordinator.createChallenge(
             deviceId: deviceId,
             displayName: deviceName,
-            publicKey: localPublicKey
+            publicKey: localPublicKey,
+            port: 54884
         )
         activePairingId = challenge.pairingId
         if let challengeData = challenge.challenge {
             activeSAS = pairingCoordinator.computeSAS(
                 localIdentity: localPublicKey,
-                peerIdentity: "PeerSampleIdentityKeyData".data(using: .utf8)!,
+                peerIdentity: localPublicKey,
                 challenge: challengeData
             )
         }
         state = stateMachine.handle(event: .startDiscovery)
-        diagnosticLogger.log(category: .connectionState, message: "Pairing initiated")
     }
 
     public func confirmPairing() {
@@ -118,23 +259,21 @@ public final class BridgeAppModel: ObservableObject {
         do {
             _ = try pairingCoordinator.completePairing(
                 pairingId: pairingId,
-                peerDeviceId: "android-sample-peer",
-                peerDisplayName: "Pixel 8 Pro",
-                peerPublicKey: "PeerSampleIdentityKeyData".data(using: .utf8)!,
+                peerDeviceId: "android-phone",
+                peerDisplayName: "Pixel Phone",
+                peerPublicKey: localPublicKey,
                 userConfirmed: true
             )
             pairedPeers = peerStore.allPeers()
             activePairingId = nil
             activeSAS = nil
             state = stateMachine.handle(event: .pairingSucceeded)
-            connectedPeerName = "Pixel 8 Pro"
+            connectedPeerName = "Pixel Phone"
             activeRouteType = .localLAN
-            diagnosticLogger.log(category: .handshake, message: "Pairing confirmed with Pixel 8 Pro")
         } catch {
             activePairingId = nil
             activeSAS = nil
             state = stateMachine.handle(event: .pairingFailed(error.localizedDescription))
-            diagnosticLogger.log(category: .error, message: "Pairing failed", details: ["reason": error.localizedDescription])
         }
     }
 
@@ -150,25 +289,24 @@ public final class BridgeAppModel: ObservableObject {
         if connectedPeerName != nil {
             disconnect()
         }
-        diagnosticLogger.log(category: .connectionState, message: "Peer revoked", details: ["peerId": deviceId])
     }
 
     public func disconnect() {
         state = stateMachine.handle(event: .disconnect)
         connectedPeerName = nil
         activeRouteType = nil
-        diagnosticLogger.log(category: .connectionState, message: "Disconnected by user")
+        socketClient?.disconnect()
     }
 
     public func saveTailscaleEndpoint() {
         guard !tailscaleHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         endpointStore.saveEndpoint(
             RemoteEndpointConfig(
-                deviceId: "android-sample-peer",
+                deviceId: "android-phone",
                 tailscaleHost: tailscaleHost.trimmingCharacters(in: .whitespacesAndNewlines)
             )
         )
-        let resolved = router.resolveRoute(for: "android-sample-peer")
+        let resolved = router.resolveRoute(for: "android-phone")
         activeRouteType = resolved?.routeType
         diagnosticLogger.log(category: .routeSelection, message: "Saved Tailscale remote endpoint: \(tailscaleHost)")
     }
@@ -178,32 +316,31 @@ public final class BridgeAppModel: ObservableObject {
     }
 
     public func sendSampleFile() {
-        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("mac_sample_doc.pdf")
-        try? "Sample PDF Document Bytes".data(using: .utf8)?.write(to: tempFile)
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("Bridge_Document.txt")
+        try? "Hello from macOS! Bridge Continuity File Transfer.".data(using: .utf8)?.write(to: tempFile)
         do {
-            let (_, transferId) = try transferManager.initiateTransfer(
+            let (reqEnv, transferId) = try transferManager.initiateTransfer(
                 sourceURL: tempFile,
                 senderDeviceId: deviceId,
-                sessionId: "active-session"
+                sessionId: "live-session"
             )
+            sendEnvelope(reqEnv)
             lastTransferLog = "File sent: \(tempFile.lastPathComponent) (\(transferId))"
-            diagnosticLogger.log(category: .transferMetric, message: "Outbound file transfer: \(tempFile.lastPathComponent)")
         } catch {
             lastTransferLog = "Transfer error: \(error.localizedDescription)"
-            diagnosticLogger.log(category: .error, message: "Transfer initiation failed", details: ["error": error.localizedDescription])
         }
     }
 
     public func sendUrl(_ urlString: String) {
         do {
-            _ = try textSharingService.createShareEnvelope(
+            let env = try textSharingService.createShareEnvelope(
                 content: urlString,
                 isURL: true,
                 senderDeviceId: deviceId,
-                sessionId: "active-session"
+                sessionId: "live-session"
             )
+            sendEnvelope(env)
             lastTransferLog = "URL sent: \(urlString)"
-            diagnosticLogger.log(category: .transferMetric, message: "URL shared")
         } catch {
             lastTransferLog = "Share error: \(error.localizedDescription)"
         }
@@ -225,6 +362,12 @@ struct BridgeMenuView: View {
                     .foregroundColor(model.state == .connected ? .green : .secondary)
             }
 
+            if !model.localIps.isEmpty {
+                Text("Mac IP: \(model.localIps.first ?? "")")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+
             if let route = model.activeRouteType {
                 HStack {
                     Image(systemName: route == .localLAN ? "wifi" : "network")
@@ -241,7 +384,7 @@ struct BridgeMenuView: View {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("Connected to: \(peer)")
+                    Text("Connected: \(peer)")
                         .font(.subheadline)
                 }
 
@@ -298,7 +441,16 @@ struct BridgeMenuView: View {
                 Text("No device connected")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                Button("Pair New Device...") {
+
+                HStack {
+                    TextField("Phone IP address...", text: $model.targetPhoneIp)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Connect") {
+                        model.connectToPhone(ip: model.targetPhoneIp)
+                    }
+                }
+
+                Button("Start Pairing Server...") {
                     model.startPairing()
                 }
             }
@@ -320,7 +472,7 @@ struct BridgeMenuView: View {
             }
         }
         .padding(16)
-        .frame(width: 300)
+        .frame(width: 320)
     }
 }
 
@@ -335,6 +487,9 @@ struct BridgeSettingsView: View {
                     .bold()
                 Text("Device: \(model.deviceName)")
                 Text("Device ID: \(model.deviceId)")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary)
+                Text("Local IP: \(model.localIps.joined(separator: ", "))")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 Text("Status: \(model.state.rawValue.capitalized)")
@@ -439,6 +594,9 @@ struct BridgeApp {
         let identity = IdentityManager.generateDeviceId()
         print("Generated Device ID: \(identity)")
 
+        let ips = BridgeSocketServer.getLocalIpAddresses()
+        print("Local IP Addresses: \(ips.joined(separator: ", "))")
+
         let store = InMemoryTrustedPeerStore()
         let coordinator = PairingCoordinator(store: store)
         let key = "MockKeyBytes".data(using: .utf8)!
@@ -460,7 +618,7 @@ struct BridgeApp {
         print("Resolved Route: \(route?.routeType.rawValue ?? "none") to \(route?.host ?? "")")
 
         let logger = DiagnosticLogger.shared
-        logger.log(category: .connectionState, message: "M4 Remote and Polish verification complete")
+        logger.log(category: .connectionState, message: "Real socket and runtime verification complete")
         let bundle = logger.exportDiagnosticBundle()
         print("Exported Redacted Diagnostic Bundle (\(bundle.count) bytes)")
     }

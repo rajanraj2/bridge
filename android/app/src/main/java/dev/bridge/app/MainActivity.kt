@@ -1,6 +1,10 @@
 package dev.bridge.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,9 +41,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bridge.clipboard.ClipboardDestinationAdapter
 import dev.bridge.clipboard.ClipboardPolicy
 import dev.bridge.clipboard.ClipboardProcessor
-import dev.bridge.domain.model.Capability
 import dev.bridge.domain.model.ConnectionState
 import dev.bridge.domain.statemachine.ConnectionEvent
 import dev.bridge.domain.statemachine.ConnectionStateMachine
@@ -51,8 +56,12 @@ import dev.bridge.network.endpoint.ConnectionRouteType
 import dev.bridge.network.endpoint.EndpointRouter
 import dev.bridge.network.endpoint.InMemoryRemoteEndpointStore
 import dev.bridge.network.endpoint.RemoteEndpointConfig
+import dev.bridge.network.socket.BridgeSocketClient
+import dev.bridge.network.socket.BridgeSocketServer
+import dev.bridge.network.socket.SocketConnectionListener
 import dev.bridge.notifications.NotificationFilterPolicy
 import dev.bridge.notifications.NotificationProcessor
+import dev.bridge.protocol.v1.Envelope
 import dev.bridge.security.IdentityManager
 import dev.bridge.security.InMemoryTrustedPeerStore
 import dev.bridge.security.PairingChallengePayload
@@ -63,17 +72,46 @@ import dev.bridge.transfers.TextSharingService
 import dev.bridge.transfers.TransferProgress
 import dev.bridge.transfers.TransferStatus
 import java.io.File
+import java.security.SecureRandom
+import java.util.Base64
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var clipboardManager: ClipboardManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+        val prefs = getSharedPreferences("bridge_identity", Context.MODE_PRIVATE)
+        var deviceId = prefs.getString("device_id", null)
+        var publicKeyBase64 = prefs.getString("public_key", null)
+
+        if (deviceId == null || publicKeyBase64 == null) {
+            deviceId = IdentityManager.generateDeviceId()
+            val keyBytes = ByteArray(32)
+            SecureRandom().nextBytes(keyBytes)
+            publicKeyBase64 = Base64.getEncoder().encodeToString(keyBytes)
+            prefs.edit()
+                .putString("device_id", deviceId)
+                .putString("public_key", publicKeyBase64)
+                .apply()
+        }
+
+        val localPublicKey = Base64.getDecoder().decode(publicKeyBase64)
+
         setContent {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    BridgeDashboard()
+                    BridgeDashboard(
+                        context = this,
+                        localDeviceId = deviceId,
+                        localPublicKey = localPublicKey,
+                        clipboardManager = clipboardManager
+                    )
                 }
             }
         }
@@ -81,7 +119,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun BridgeDashboard(modifier: Modifier = Modifier) {
+fun BridgeDashboard(
+    context: Context,
+    localDeviceId: String,
+    localPublicKey: ByteArray,
+    clipboardManager: ClipboardManager,
+    modifier: Modifier = Modifier
+) {
     val stateMachine = remember { ConnectionStateMachine() }
     val peerStore = remember { InMemoryTrustedPeerStore() }
     val pairingCoordinator = remember { PairingCoordinator(peerStore) }
@@ -90,11 +134,23 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
     val endpointStore = remember { InMemoryRemoteEndpointStore() }
     val router = remember { EndpointRouter(discoveryService, endpointStore) }
 
-    val notificationProcessor = remember { NotificationProcessor() }
-    val clipboardProcessor = remember { ClipboardProcessor() }
-    val transferManager = remember { FileTransferManager() }
+    val downloadsDir = remember {
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: File(context.filesDir, "downloads")
+    }
+    val transferManager = remember { FileTransferManager(destinationDirectory = downloadsDir) }
     val textSharingService = remember { TextSharingService() }
     val diagnosticLogger = remember { DiagnosticLogger.shared }
+
+    val clipboardAdapter = remember {
+        object : ClipboardDestinationAdapter {
+            override fun setClipboardText(text: String) {
+                val clip = ClipData.newPlainText("Bridge", text)
+                clipboardManager.setPrimaryClip(clip)
+            }
+        }
+    }
+    val clipboardProcessor = remember { ClipboardProcessor(destinationAdapter = clipboardAdapter) }
+    val notificationProcessor = remember { NotificationProcessor() }
 
     var connectionState by remember { mutableStateOf(stateMachine.state) }
     var activeRouteType by remember { mutableStateOf<ConnectionRouteType?>(null) }
@@ -105,6 +161,7 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
     var notificationsEnabled by remember { mutableStateOf(true) }
     var clipboardEnabled by remember { mutableStateOf(true) }
     var tailscaleHostInput by remember { mutableStateOf("") }
+    var targetMacIpInput by remember { mutableStateOf("") }
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
 
@@ -112,8 +169,74 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
     var activeTransferProgress by remember { mutableStateOf<TransferProgress?>(null) }
     var activeTransferId by remember { mutableStateOf<String?>(null) }
 
-    val localDeviceId = remember { IdentityManager.generateDeviceId() }
-    val localPublicKey = remember { "Android-Identity-Key-Bytes".toByteArray() }
+    // Live socket server and client references
+    var socketServer by remember { mutableStateOf<BridgeSocketServer?>(null) }
+    var socketClient by remember { mutableStateOf<BridgeSocketClient?>(null) }
+
+    val localIps = remember { BridgeSocketServer.getLocalIpAddresses() }
+
+    val socketListener = remember {
+        object : SocketConnectionListener {
+            override fun onConnected(remoteAddress: String) {
+                activeRouteType = if (remoteAddress.startsWith("100.")) ConnectionRouteType.REMOTE_TAILSCALE else ConnectionRouteType.LOCAL_LAN
+                connectionState = stateMachine.handle(ConnectionEvent.PairingSucceeded)
+                BridgeForegroundService.startService(context, remoteAddress)
+                diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Socket connected: $remoteAddress")
+            }
+
+            override fun onEnvelopeReceived(envelope: Envelope) {
+                if (envelope.hasClipboardUpdate()) {
+                    clipboardProcessor.handleRemoteUpdate(envelope, localDeviceId)
+                }
+                if (envelope.hasShareText()) {
+                    textSharingService.handleIncomingShare(envelope)
+                }
+                if (envelope.hasFileRequest()) {
+                    val acceptEnv = transferManager.handleIncomingRequest(envelope, localDeviceId, "live-session", autoAccept = true)
+                    socketServer?.sendEnvelope(acceptEnv) ?: socketClient?.sendEnvelope(acceptEnv)
+                }
+                if (envelope.hasFileChunk()) {
+                    val (progress, _) = transferManager.handleIncomingChunk(envelope)
+                    activeTransferProgress = progress
+                }
+            }
+
+            override fun onDisconnected(reason: String) {
+                connectionState = stateMachine.handle(ConnectionEvent.Disconnect)
+                activeRouteType = null
+                BridgeForegroundService.stopService(context)
+                diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Socket disconnected: $reason")
+            }
+        }
+    }
+
+    // Connect notification listener service to processor
+    BridgeNotificationListenerService.activeProcessor = notificationProcessor
+    BridgeNotificationListenerService.localDeviceId = localDeviceId
+    BridgeNotificationListenerService.activeSessionId = "live-session"
+
+    // Clipboard listener hook
+    DisposableEffect(clipboardEnabled) {
+        val listener = ClipboardManager.OnPrimaryClipChangedListener {
+            if (clipboardEnabled) {
+                val clip = clipboardManager.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    val text = clip.getItemAt(0).text?.toString()
+                    if (!text.isNullOrBlank()) {
+                        val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
+                        if (env != null) {
+                            socketServer?.sendEnvelope(env) ?: socketClient?.sendEnvelope(env)
+                            lastActionLog = "Synced clipboard: ${text.take(30)}..."
+                        }
+                    }
+                }
+            }
+        }
+        clipboardManager.addPrimaryClipChangedListener(listener)
+        onDispose {
+            clipboardManager.removePrimaryClipChangedListener(listener)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -135,27 +258,33 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Device identity card
+        // Device identity card with real IP
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = "Local Device Identity",
+                    text = "Local Device Identity & Network IP",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = localDeviceId,
+                    text = "ID: $localDeviceId",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp
+                )
+                Text(
+                    text = "IP: " + if (localIps.isNotEmpty()) localIps.joinToString(", ") else "127.0.0.1",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = "Fingerprint: " + IdentityManager.fingerprint(localPublicKey),
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -209,23 +338,31 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                 ) {
                     Button(
                         onClick = {
+                            // Start real background TCP server
+                            socketServer?.close()
+                            val server = BridgeSocketServer(54884, socketListener)
+                            server.start()
+                            socketServer = server
+
                             val challenge = pairingCoordinator.createChallenge(
                                 deviceId = localDeviceId,
                                 displayName = "Pixel Phone",
-                                publicKey = localPublicKey
+                                publicKey = localPublicKey,
+                                port = 54884
                             )
                             activeChallenge = challenge
                             sasCode = pairingCoordinator.computeSAS(
                                 localIdentity = localPublicKey,
-                                peerIdentity = "PeerMockIdentityKey".toByteArray(),
+                                peerIdentity = localPublicKey,
                                 challenge = challenge.challenge
                             )
                             connectionState = stateMachine.handle(ConnectionEvent.StartDiscovery)
-                            diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Pairing discovery started")
+                            diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Server listening on port 54884")
+                            lastActionLog = "Bridge Server listening on port 54884"
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Pair New")
+                        Text("Start Server / Pair")
                     }
 
                     OutlinedButton(
@@ -233,13 +370,68 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                             activeChallenge = null
                             sasCode = null
                             activeRouteType = null
+                            socketServer?.close()
+                            socketServer = null
+                            socketClient?.close()
+                            socketClient = null
                             connectionState = stateMachine.handle(ConnectionEvent.Disconnect)
+                            BridgeForegroundService.stopService(context)
                             diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Disconnected by user")
                         },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Disconnect")
                     }
+                }
+            }
+        }
+
+        // Direct connect to Mac IP
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Connect Directly to Mac",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = targetMacIpInput,
+                    onValueChange = { targetMacIpInput = it },
+                    label = { Text("Mac IP Address (e.g. 192.168.1.X or 100.X)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        if (targetMacIpInput.isNotBlank()) {
+                            Thread {
+                                socketClient?.close()
+                                val client = BridgeSocketClient(socketListener)
+                                val success = client.connect(targetMacIpInput.trim(), 54884)
+                                if (success) {
+                                    socketClient = client
+                                    val hello = Envelope.newBuilder()
+                                        .setMessageId("hello-1")
+                                        .setSessionId("live-session")
+                                        .setSenderDeviceId(localDeviceId)
+                                        .build()
+                                    client.sendEnvelope(hello)
+                                    lastActionLog = "Connected to Mac at ${targetMacIpInput.trim()}!"
+                                } else {
+                                    lastActionLog = "Connection to ${targetMacIpInput.trim()} failed."
+                                }
+                            }.start()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Connect to Mac")
                 }
             }
         }
@@ -259,15 +451,16 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Scan QR code or confirm SAS match:",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "Connect from Mac using IP: " + (localIps.firstOrNull() ?: "127.0.0.1"),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
                     sasCode?.let { code ->
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = code,
+                            text = "SAS: $code",
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 28.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -282,9 +475,9 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                             onClick = {
                                 val trusted = pairingCoordinator.completePairing(
                                     pairingId = challenge.pairingId,
-                                    peerDeviceId = "mac-sample-peer",
-                                    peerDisplayName = "MacBook Pro",
-                                    peerPublicKey = "PeerMockIdentityKey".toByteArray(),
+                                    peerDeviceId = "mac-peer",
+                                    peerDisplayName = "MacBook",
+                                    peerPublicKey = localPublicKey,
                                     userConfirmed = true
                                 )
                                 pairedDevices = peerStore.allPeers()
@@ -292,7 +485,6 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                                 sasCode = null
                                 connectionState = stateMachine.handle(ConnectionEvent.PairingSucceeded)
                                 activeRouteType = ConnectionRouteType.LOCAL_LAN
-                                diagnosticLogger.log(DiagnosticCategory.HANDSHAKE, "Pairing confirmed for ${trusted.deviceId}")
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -380,7 +572,7 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
         if (pairedDevices.isEmpty()) {
             Text(
-                text = "No paired devices yet. Tap 'Pair New' to start.",
+                text = "No paired devices yet. Tap 'Start Server / Pair' to begin.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -438,7 +630,7 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Chunked streaming with SHA-256 integrity verification",
+                    text = "Saved automatically to Downloads folder (${downloadsDir.name})",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -467,8 +659,9 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                                     content = shareInputText,
                                     isUrl = isUrl,
                                     senderDeviceId = localDeviceId,
-                                    sessionId = "active-session"
+                                    sessionId = "live-session"
                                 )
+                                socketServer?.sendEnvelope(env) ?: socketClient?.sendEnvelope(env)
                                 lastActionLog = if (isUrl) "URL sent to Mac!" else "Text sent to Mac!"
                                 shareInputText = ""
                             }
@@ -480,13 +673,12 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
                     Button(
                         onClick = {
-                            val sample = File(System.getProperty("java.io.tmpdir"), "bridge_demo_photo.jpg")
-                            sample.writeBytes(ByteArray(300 * 1024) { 0x42 })
-                            val (reqEnv, transferId) = transferManager.initiateTransfer(sample, localDeviceId, "active-session")
+                            val sample = File(context.cacheDir, "sample_doc.txt")
+                            sample.writeText("Bridge Continuity Document - Shared from Android phone.")
+                            val (reqEnv, transferId) = transferManager.initiateTransfer(sample, localDeviceId, "live-session")
                             activeTransferId = transferId
-                            activeTransferProgress = TransferProgress(transferId, 300 * 1024, 300 * 1024, TransferStatus.COMPLETED)
-                            lastActionLog = "File sent: ${sample.name} (300 KiB, SHA-256 verified)"
-                            diagnosticLogger.log(DiagnosticCategory.TRANSFER_METRIC, "File transfer initiated: ${sample.name}")
+                            socketServer?.sendEnvelope(reqEnv) ?: socketClient?.sendEnvelope(reqEnv)
+                            lastActionLog = "File transfer started: ${sample.name}"
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -505,18 +697,6 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                         progress = { progress.fractionCompleted.toFloat() },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (progress.status != TransferStatus.COMPLETED) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = {
-                                activeTransferId?.let { transferManager.cancelTransfer(it) }
-                                activeTransferProgress = null
-                                lastActionLog = "Transfer cancelled by user"
-                            }
-                        ) {
-                            Text("Cancel Transfer")
-                        }
-                    }
                 }
             }
         }
@@ -559,25 +739,6 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                         }
                     )
                 }
-
-                if (notificationsEnabled) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            val env = notificationProcessor.processNotification(
-                                sourcePackage = "com.sample.messages",
-                                title = "Test Contact",
-                                body = "Bridge test notification payload",
-                                localDeviceId = localDeviceId,
-                                sessionId = "test-session"
-                            )
-                            lastActionLog = if (env != null) "Notification sent!" else "Notification filtered."
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Send Test Notification")
-                    }
-                }
             }
         }
 
@@ -616,23 +777,6 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                if (clipboardEnabled) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            val env = clipboardProcessor.handleLocalCopy(
-                                text = "Sample clipboard text from Android",
-                                localDeviceId = localDeviceId,
-                                sessionId = "test-session"
-                            )
-                            lastActionLog = if (env != null) "Clipboard copied & forwarded!" else "Clipboard sync filtered."
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Sync Test Clipboard")
-                    }
-                }
             }
         }
 
