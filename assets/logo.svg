@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1120"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+
+    <!-- Arch Continuity Gradient -->
+    <linearGradient id="bridgeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="35%" stop-color="#3b82f6"/>
+      <stop offset="70%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <!-- Glowing Core Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <linearGradient id="phoneGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+
+    <linearGradient id="macGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" rx="112" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+
+  <!-- Continuity Bridge Arch Wave (Glow Layer) -->
+  <path d="M 148 296 C 180 160, 332 160, 364 296"
+        fill="none"
+        stroke="url(#bridgeGrad)"
+        stroke-width="28"
+        stroke-linecap="round"
+        filter="url(#glow)"
+        opacity="0.6"/>
+
+  <!-- Continuity Bridge Arch Wave (Solid Foreground Layer) -->
+  <path d="M 148 296 C 180 160, 332 160, 364 296"
+        fill="none"
+        stroke="url(#bridgeGrad)"
+        stroke-width="20"
+        stroke-linecap="round"/>
+
+  <!-- Secondary Lower Harmonic Bridge Arc -->
+  <path d="M 172 320 C 204 228, 308 228, 340 320"
+        fill="none"
+        stroke="url(#bridgeGrad)"
+        stroke-width="10"
+        stroke-linecap="round"
+        opacity="0.85"/>
+
+  <!-- Center Data Flow Pulse Dot -->
+  <circle cx="256" cy="194" r="14" fill="#f8fafc" filter="url(#glow)"/>
+  <circle cx="256" cy="194" r="9" fill="#38bdf8"/>
+
+  <!-- Left Node: Phone Glyph (Android) -->
+  <g transform="translate(108, 252)">
+    <rect x="0" y="0" width="76" height="136" rx="20" fill="#1e293b" stroke="url(#phoneGrad)" stroke-width="8"/>
+    <!-- Speaker / camera notch bar -->
+    <rect x="24" y="10" width="28" height="4" rx="2" fill="#64748b"/>
+    <!-- Screen content preview -->
+    <rect x="10" y="24" width="56" height="88" rx="8" fill="rgba(56, 189, 248, 0.15)"/>
+    <!-- Home bar -->
+    <rect x="26" y="120" width="24" height="4" rx="2" fill="#64748b"/>
+  </g>
+
+  <!-- Right Node: Mac Display Glyph (macOS) -->
+  <g transform="translate(328, 260)">
+    <!-- Display Housing -->
+    <rect x="0" y="0" width="112" height="80" rx="10" fill="#1e293b" stroke="url(#macGrad)" stroke-width="8"/>
+    <!-- Screen Content Preview -->
+    <rect x="8" y="8" width="96" height="64" rx="4" fill="rgba(129, 140, 248, 0.15)"/>
+    <!-- Stand / Base -->
+    <path d="M 46 80 L 42 108 L 70 108 L 66 80 Z" fill="#334155"/>
+    <rect x="30" y="108" width="52" height="6" rx="3" fill="#64748b"/>
+  </g>
+</svg>

@@ -45,6 +45,10 @@ fi
 
 chmod +x "${APP_DIR}/Contents/MacOS/BridgeApp"
 
+if [ -f "${REPO_ROOT}/macos/Resources/AppIcon.icns" ]; then
+    cp "${REPO_ROOT}/macos/Resources/AppIcon.icns" "${APP_DIR}/Contents/Resources/AppIcon.icns"
+fi
+
 # 2. Write Info.plist
 cat <<EOF > "${APP_DIR}/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -59,6 +63,8 @@ cat <<EOF > "${APP_DIR}/Contents/Info.plist"
     <string>Bridge</string>
     <key>CFBundleDisplayName</key>
     <string>Bridge</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

@@ -1,5 +1,9 @@
 # Bridge 🌉
 
+<p align="center">
+  <img src="assets/logo.png" width="128" height="128" alt="Bridge Logo" />
+</p>
+
 [![Android CI](https://github.com/rajanraj2/bridge/actions/workflows/android.yml/badge.svg)](https://github.com/rajanraj2/bridge/actions/workflows/android.yml)
 [![macOS CI](https://github.com/rajanraj2/bridge/actions/workflows/macos.yml/badge.svg)](https://github.com/rajanraj2/bridge/actions/workflows/macos.yml)
 [![Protocol CI](https://github.com/rajanraj2/bridge/actions/workflows/protocol.yml/badge.svg)](https://github.com/rajanraj2/bridge/actions/workflows/protocol.yml)

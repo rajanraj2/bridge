@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.14] - 2026-10-21
+
+### Added
+- **Unified Brand Logo & Cross-Platform Iconography**:
+  - Designed the official Bridge vector brand icon representing seamless continuity between Android and Mac devices.
+  - Added Android Adaptive Icons (`ic_launcher.xml`, `ic_launcher_round.xml`) and density mipmaps (`mdpi` through `xxxhdpi`).
+  - Packaged macOS multi-resolution `AppIcon.icns` (16x16 to 1024x1024) into `Bridge.app` bundle and linked via `CFBundleIconFile`.
+  - Added official brand mark to `README.md`.
+
+---
 ## [0.1.13] - 2026-10-21
 
 ### Added
