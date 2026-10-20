@@ -125,13 +125,12 @@ class BridgeForegroundService : Service() {
             try {
                 val clip = cm.primaryClip
                 if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0).text?.toString()
+                    val text = clip.getItemAt(0).coerceToText(this).toString()
                     if (!text.isNullOrBlank() && text != lastReceivedText && text != lastSentText) {
                         println("BridgeForegroundService: onPrimaryClipChanged detected text='$text'")
                         dispatchLocalCopy(text)
                     }
                 } else {
-                    println("BridgeForegroundService: primaryClip is null or background restricted, launching trampoline...")
                     val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
                     }
@@ -209,7 +208,7 @@ class BridgeForegroundService : Service() {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 val clip = cm?.primaryClip
                 if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0).text?.toString()
+                    val text = clip.getItemAt(0).coerceToText(this).toString()
                     if (!text.isNullOrBlank()) {
                         dispatchLocalCopy(text)
                     }

@@ -187,7 +187,7 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-    val currentAppVersion = "0.1.9"
+    val currentAppVersion = "0.1.10"
     val coroutineScope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -300,7 +300,7 @@ fun BridgeDashboard(
             if (clipboardEnabled) {
                 val clip = clipboardManager.primaryClip
                 if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0).text?.toString()
+                    val text = clip.getItemAt(0).coerceToText(context).toString()
                     if (!text.isNullOrBlank()) {
                         val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = false)
                         if (env != null) {
@@ -917,7 +917,7 @@ fun BridgeDashboard(
                     Button(
                         onClick = {
                             val clip = clipboardManager.primaryClip
-                            val text = if (clip != null && clip.itemCount > 0) clip.getItemAt(0).text?.toString() else null
+                            val text = if (clip != null && clip.itemCount > 0) clip.getItemAt(0).coerceToText(context).toString() else null
                             println("BridgeApp: Send Clipboard button clicked. text='$text'")
                             if (!text.isNullOrBlank()) {
                                 val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = true)
