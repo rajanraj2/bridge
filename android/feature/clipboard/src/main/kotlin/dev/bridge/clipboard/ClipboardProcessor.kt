@@ -38,7 +38,8 @@ class ClipboardProcessor(
     fun handleLocalCopy(
         text: String,
         localDeviceId: String,
-        sessionId: String
+        sessionId: String,
+        forceSend: Boolean = false
     ): Envelope? {
         if (!policy.enabled) return null
         if (text.length > policy.maxTextLength) return null
@@ -47,7 +48,7 @@ class ClipboardProcessor(
         val shaBytes = IdentityManager.sha256(textBytes)
         val shaHex = shaBytes.joinToString("") { "%02x".format(it) }
 
-        if (policy.preventEchoLoops && cache.isContentRecent(shaHex)) {
+        if (!forceSend && policy.preventEchoLoops && cache.isContentRecent(shaHex)) {
             echoBlockedCount++
             return null
         }
@@ -120,12 +121,7 @@ class ClipboardProcessor(
         }
 
         val shaHex = update.contentSha256.toByteArray().joinToString("") { "%02x".format(it) }
-
-        // 4. Content loop check
-        if (policy.preventEchoLoops && cache.isContentRecent(shaHex)) {
-            echoBlockedCount++
-            return Result.failure(Exception(ClipboardRejectionReason.ContentHashMatchesRecent.toString()))
-        }
+        // Content hash check only applies to local copy echo, not legitimate remote updates
 
         cache.recordEvent(update.eventId, shaHex)
         destinationAdapter?.setClipboardText(update.text)

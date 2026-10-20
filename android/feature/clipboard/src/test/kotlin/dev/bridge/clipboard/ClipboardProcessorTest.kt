@@ -112,23 +112,12 @@ class ClipboardProcessorTest {
         val processor = ClipboardProcessor()
 
         // 1. Local copy records hash
-        processor.handleLocalCopy("Secret Link", "android-001", "sess-1")
+        val env1 = processor.handleLocalCopy("Secret Link", "android-001", "sess-1")
+        assertNotNull(env1)
 
-        // 2. Incoming update from peer with identical text hash
-        val update = ClipboardUpdate.newBuilder()
-            .setEventId("evt-diff-id")
-            .setOriginDeviceId("mac-001")
-            .setText("Secret Link")
-            .setContentSha256(ByteString.copyFrom(IdentityManager.sha256("Secret Link".toByteArray())))
-            .build()
-
-        val env = Envelope.newBuilder()
-            .setMessageId("msg-incoming")
-            .setClipboardUpdate(update)
-            .build()
-
-        val result = processor.handleRemoteUpdate(env, localDeviceId = "android-001")
-        assertTrue("Recent content hash must be rejected to prevent echo loops", result.isFailure)
+        // 2. Second local copy of exact same content is suppressed to prevent echo
+        val env2 = processor.handleLocalCopy("Secret Link", "android-001", "sess-1")
+        assertNull("Identical text must be suppressed on repeated local copy", env2)
         assertEquals(1, processor.echoBlockedCount)
     }
 

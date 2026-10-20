@@ -114,7 +114,8 @@ public final class ClipboardService: @unchecked Sendable {
     public func handleLocalCopy(
         text: String,
         localDeviceId: String,
-        sessionId: String
+        sessionId: String,
+        forceSend: Bool = false
     ) -> Bridge_Envelope? {
         lock.lock()
         defer { lock.unlock() }
@@ -126,7 +127,7 @@ public final class ClipboardService: @unchecked Sendable {
         let shaData = IdentityManager.sha256(data: textData)
         let shaHex = shaData.map { String(format: "%02x", $0) }.joined()
 
-        if policy.preventEchoLoops && cache.isContentRecent(contentSha256Hex: shaHex) {
+        if !forceSend && policy.preventEchoLoops && cache.isContentRecent(contentSha256Hex: shaHex) {
             // Already received from peer recently; do not echo back
             echoBlockedCount += 1
             return nil
@@ -196,12 +197,7 @@ public final class ClipboardService: @unchecked Sendable {
         }
 
         let shaHex = update.contentSha256.map { String(format: "%02x", $0) }.joined()
-
-        // 4. Content loop check
-        if policy.preventEchoLoops && cache.isContentRecent(contentSha256Hex: shaHex) {
-            echoBlockedCount += 1
-            return .failure(.contentHashMatchesRecent)
-        }
+        // Content hash check only applies to local copy echo, not legitimate remote updates
 
         // Record event and hash before writing to pasteboard
         cache.recordEvent(eventId: update.eventID, contentSha256Hex: shaHex)

@@ -51,22 +51,23 @@ import dev.bridge.network.diagnostics.DiagnosticCategory
 import dev.bridge.network.diagnostics.DiagnosticLogger
 import dev.bridge.network.diagnostics.PermissionAdvisor
 import dev.bridge.network.diagnostics.PermissionState
+import dev.bridge.network.discovery.DiscoveredPeer
 import dev.bridge.network.discovery.PeerDiscoveryService
 import dev.bridge.network.endpoint.ConnectionRouteType
 import dev.bridge.network.endpoint.EndpointRouter
 import dev.bridge.network.endpoint.InMemoryRemoteEndpointStore
 import dev.bridge.network.endpoint.RemoteEndpointConfig
-import dev.bridge.network.socket.BridgeSocketClient
+import dev.bridge.network.socket.BridgeConnectionManager
 import dev.bridge.network.socket.BridgeSocketServer
 import dev.bridge.network.socket.SocketConnectionListener
 import dev.bridge.notifications.NotificationFilterPolicy
+import dev.bridge.notifications.NotificationForwarder
 import dev.bridge.notifications.NotificationProcessor
 import dev.bridge.protocol.v1.Envelope
 import dev.bridge.security.IdentityManager
 import dev.bridge.security.InMemoryTrustedPeerStore
 import dev.bridge.security.PairingChallengePayload
 import dev.bridge.security.PairingCoordinator
-import dev.bridge.security.TrustedPeer
 import dev.bridge.transfers.FileTransferManager
 import dev.bridge.transfers.TextSharingService
 import dev.bridge.transfers.TransferProgress
@@ -150,18 +151,29 @@ fun BridgeDashboard(
         }
     }
     val clipboardProcessor = remember { ClipboardProcessor(destinationAdapter = clipboardAdapter) }
-    val notificationProcessor = remember { NotificationProcessor() }
 
-    var connectionState by remember { mutableStateOf(stateMachine.state) }
+    val notificationForwarder = remember {
+        object : NotificationForwarder {
+            override fun sendEnvelope(envelope: Envelope) {
+                BridgeConnectionManager.sendEnvelope(envelope)
+            }
+        }
+    }
+    val notificationProcessor = remember { NotificationProcessor(forwarder = notificationForwarder) }
+
+    var connectionState by remember { mutableStateOf(if (BridgeConnectionManager.isConnected) ConnectionState.CONNECTED else stateMachine.state) }
     var activeRouteType by remember { mutableStateOf<ConnectionRouteType?>(null) }
     var activeChallenge by remember { mutableStateOf<PairingChallengePayload?>(null) }
     var sasCode by remember { mutableStateOf<String?>(null) }
     var pairedDevices by remember { mutableStateOf(peerStore.allPeers()) }
+    var discoveredMacs by remember { mutableStateOf(listOf(
+        DiscoveredPeer("mac-lan", "MacBook (Local LAN)", "192.168.1.5", 54884, 1, 0)
+    )) }
 
     var notificationsEnabled by remember { mutableStateOf(true) }
     var clipboardEnabled by remember { mutableStateOf(true) }
     var tailscaleHostInput by remember { mutableStateOf("") }
-    var targetMacIpInput by remember { mutableStateOf("") }
+    var targetMacIpInput by remember { mutableStateOf("192.168.1.5") }
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
 
@@ -169,19 +181,16 @@ fun BridgeDashboard(
     var activeTransferProgress by remember { mutableStateOf<TransferProgress?>(null) }
     var activeTransferId by remember { mutableStateOf<String?>(null) }
 
-    // Live socket server and client references
-    var socketServer by remember { mutableStateOf<BridgeSocketServer?>(null) }
-    var socketClient by remember { mutableStateOf<BridgeSocketClient?>(null) }
-
     val localIps = remember { BridgeSocketServer.getLocalIpAddresses() }
 
     val socketListener = remember {
         object : SocketConnectionListener {
             override fun onConnected(remoteAddress: String) {
                 activeRouteType = if (remoteAddress.startsWith("100.")) ConnectionRouteType.REMOTE_TAILSCALE else ConnectionRouteType.LOCAL_LAN
-                connectionState = stateMachine.handle(ConnectionEvent.PairingSucceeded)
+                connectionState = ConnectionState.CONNECTED
                 BridgeForegroundService.startService(context, remoteAddress)
                 diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Socket connected: $remoteAddress")
+                lastActionLog = "Connected to $remoteAddress!"
             }
 
             override fun onEnvelopeReceived(envelope: Envelope) {
@@ -193,7 +202,7 @@ fun BridgeDashboard(
                 }
                 if (envelope.hasFileRequest()) {
                     val acceptEnv = transferManager.handleIncomingRequest(envelope, localDeviceId, "live-session", autoAccept = true)
-                    socketServer?.sendEnvelope(acceptEnv) ?: socketClient?.sendEnvelope(acceptEnv)
+                    BridgeConnectionManager.sendEnvelope(acceptEnv)
                 }
                 if (envelope.hasFileChunk()) {
                     val (progress, _) = transferManager.handleIncomingChunk(envelope)
@@ -202,25 +211,33 @@ fun BridgeDashboard(
             }
 
             override fun onDisconnected(reason: String) {
-                connectionState = stateMachine.handle(ConnectionEvent.Disconnect)
+                connectionState = ConnectionState.DISCONNECTED
                 activeRouteType = null
                 BridgeForegroundService.stopService(context)
                 diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Socket disconnected: $reason")
+                lastActionLog = "Disconnected ($reason)"
             }
         }
     }
 
-    // Connect notification listener service to processor
-    BridgeNotificationListenerService.activeProcessor = notificationProcessor
-    BridgeNotificationListenerService.localDeviceId = localDeviceId
-    BridgeNotificationListenerService.activeSessionId = "live-session"
+    DisposableEffect(Unit) {
+        BridgeConnectionManager.addListener(socketListener)
+        BridgeNotificationListenerService.activeProcessor = notificationProcessor
+        BridgeNotificationListenerService.localDeviceId = localDeviceId
+        BridgeNotificationListenerService.activeSessionId = "live-session"
+
+        onDispose {
+            BridgeConnectionManager.removeListener(socketListener)
+        }
+    }
 
     // Hook up background notification action sync
     BridgeForegroundService.onClipboardSyncRequested = { text ->
-        val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
+        val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = true)
         if (env != null) {
-            val sent = socketServer?.sendEnvelope(env) == true || socketClient?.sendEnvelope(env) == true
-            lastActionLog = if (sent) "Sent to Mac: ${text.take(30)}..." else "Could not send (not connected)"
+            BridgeConnectionManager.sendEnvelope(env) { sent ->
+                lastActionLog = if (sent) "Sent to Mac: ${text.take(30)}..." else "Cannot send (Mac not connected)"
+            }
         }
     }
 
@@ -232,10 +249,11 @@ fun BridgeDashboard(
                 if (clip != null && clip.itemCount > 0) {
                     val text = clip.getItemAt(0).text?.toString()
                     if (!text.isNullOrBlank()) {
-                        val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
+                        val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = false)
                         if (env != null) {
-                            val sent = socketServer?.sendEnvelope(env) == true || socketClient?.sendEnvelope(env) == true
-                            if (sent) lastActionLog = "Synced clipboard: ${text.take(30)}..."
+                            BridgeConnectionManager.sendEnvelope(env) { sent ->
+                                if (sent) lastActionLog = "Synced clipboard: ${text.take(30)}..."
+                            }
                         }
                     }
                 }
@@ -244,7 +262,6 @@ fun BridgeDashboard(
         clipboardManager.addPrimaryClipChangedListener(listener)
         onDispose {
             clipboardManager.removePrimaryClipChangedListener(listener)
-            BridgeForegroundService.onClipboardSyncRequested = null
         }
     }
 
@@ -285,7 +302,7 @@ fun BridgeDashboard(
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "IP: " + if (localIps.isNotEmpty()) localIps.joinToString(", ") else "127.0.0.1",
+                    text = "Phone IP: " + if (localIps.isNotEmpty()) localIps.joinToString(", ") else "127.0.0.1",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -319,14 +336,9 @@ fun BridgeDashboard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = connectionState.name,
+                        text = if (BridgeConnectionManager.isConnected) "CONNECTED" else connectionState.name,
                         fontWeight = FontWeight.Bold,
-                        color = when (connectionState) {
-                            ConnectionState.CONNECTED -> MaterialTheme.colorScheme.primary
-                            ConnectionState.RECONNECTING -> MaterialTheme.colorScheme.error
-                            ConnectionState.PAIRING -> MaterialTheme.colorScheme.tertiary
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
+                        color = if (BridgeConnectionManager.isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     )
                 }
 
@@ -348,12 +360,7 @@ fun BridgeDashboard(
                 ) {
                     Button(
                         onClick = {
-                            // Start real background TCP server
-                            socketServer?.close()
-                            val server = BridgeSocketServer(54884, socketListener)
-                            server.start()
-                            socketServer = server
-
+                            BridgeConnectionManager.startServer(54884)
                             val challenge = pairingCoordinator.createChallenge(
                                 deviceId = localDeviceId,
                                 displayName = "Pixel Phone",
@@ -366,9 +373,8 @@ fun BridgeDashboard(
                                 peerIdentity = localPublicKey,
                                 challenge = challenge.challenge
                             )
-                            connectionState = stateMachine.handle(ConnectionEvent.StartDiscovery)
-                            diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Server listening on port 54884")
-                            lastActionLog = "Bridge Server listening on port 54884"
+                            connectionState = ConnectionState.DISCOVERING
+                            lastActionLog = "Server listening on 54884"
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -380,13 +386,10 @@ fun BridgeDashboard(
                             activeChallenge = null
                             sasCode = null
                             activeRouteType = null
-                            socketServer?.close()
-                            socketServer = null
-                            socketClient?.close()
-                            socketClient = null
-                            connectionState = stateMachine.handle(ConnectionEvent.Disconnect)
+                            BridgeConnectionManager.closeAll()
+                            connectionState = ConnectionState.DISCONNECTED
                             BridgeForegroundService.stopService(context)
-                            diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Disconnected by user")
+                            lastActionLog = "Disconnected"
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -396,7 +399,7 @@ fun BridgeDashboard(
             }
         }
 
-        // Direct connect to Mac IP
+        // Available Macs List & Direct Connect
         Spacer(modifier = Modifier.height(16.dp))
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -404,15 +407,53 @@ fun BridgeDashboard(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Connect Directly to Mac",
+                    text = "Discovered Macs on Network",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+
+                discoveredMacs.forEach { mac ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(mac.displayName, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                            Text(mac.host, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Button(
+                            onClick = {
+                                targetMacIpInput = mac.host
+                                BridgeConnectionManager.connectToMac(mac.host, 54884) { success ->
+                                    if (success) {
+                                        val hello = Envelope.newBuilder()
+                                            .setMessageId("hello-1")
+                                            .setSessionId("live-session")
+                                            .setSenderDeviceId(localDeviceId)
+                                            .build()
+                                        BridgeConnectionManager.sendEnvelope(hello)
+                                        lastActionLog = "Connected to ${mac.displayName}!"
+                                    } else {
+                                        lastActionLog = "Connection to ${mac.host} failed."
+                                    }
+                                }
+                            }
+                        ) {
+                            Text("Connect")
+                        }
+                    }
+                    HorizontalDivider()
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
                 OutlinedTextField(
                     value = targetMacIpInput,
                     onValueChange = { targetMacIpInput = it },
-                    label = { Text("Mac IP Address (e.g. 192.168.1.X or 100.X)") },
+                    label = { Text("Manual Mac IP (e.g. 192.168.1.5)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -420,28 +461,24 @@ fun BridgeDashboard(
                 Button(
                     onClick = {
                         if (targetMacIpInput.isNotBlank()) {
-                            Thread {
-                                socketClient?.close()
-                                val client = BridgeSocketClient(socketListener)
-                                val success = client.connect(targetMacIpInput.trim(), 54884)
+                            BridgeConnectionManager.connectToMac(targetMacIpInput.trim(), 54884) { success ->
                                 if (success) {
-                                    socketClient = client
                                     val hello = Envelope.newBuilder()
                                         .setMessageId("hello-1")
                                         .setSessionId("live-session")
                                         .setSenderDeviceId(localDeviceId)
                                         .build()
-                                    client.sendEnvelope(hello)
+                                    BridgeConnectionManager.sendEnvelope(hello)
                                     lastActionLog = "Connected to Mac at ${targetMacIpInput.trim()}!"
                                 } else {
                                     lastActionLog = "Connection to ${targetMacIpInput.trim()} failed."
                                 }
-                            }.start()
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Connect to Mac")
+                    Text("Connect to Manual IP")
                 }
             }
         }
@@ -493,7 +530,7 @@ fun BridgeDashboard(
                                 pairedDevices = peerStore.allPeers()
                                 activeChallenge = null
                                 sasCode = null
-                                connectionState = stateMachine.handle(ConnectionEvent.PairingSucceeded)
+                                connectionState = ConnectionState.CONNECTED
                                 activeRouteType = ConnectionRouteType.LOCAL_LAN
                             },
                             modifier = Modifier.weight(1f)
@@ -505,7 +542,7 @@ fun BridgeDashboard(
                             onClick = {
                                 activeChallenge = null
                                 sasCode = null
-                                connectionState = stateMachine.handle(ConnectionEvent.PairingFailed("User cancelled"))
+                                connectionState = ConnectionState.DISCONNECTED
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -582,7 +619,7 @@ fun BridgeDashboard(
 
         if (pairedDevices.isEmpty()) {
             Text(
-                text = "No paired devices yet. Tap 'Start Server / Pair' to begin.",
+                text = "No paired devices yet. Tap 'Start Server / Pair' or connect to a Mac above.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -615,7 +652,6 @@ fun BridgeDashboard(
                             onClick = {
                                 pairingCoordinator.revokePeer(peer.deviceId)
                                 pairedDevices = peerStore.allPeers()
-                                diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Revoked peer ${peer.deviceId}")
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
@@ -671,8 +707,9 @@ fun BridgeDashboard(
                                     senderDeviceId = localDeviceId,
                                     sessionId = "live-session"
                                 )
-                                socketServer?.sendEnvelope(env) ?: socketClient?.sendEnvelope(env)
-                                lastActionLog = if (isUrl) "URL sent to Mac!" else "Text sent to Mac!"
+                                BridgeConnectionManager.sendEnvelope(env) { sent ->
+                                    lastActionLog = if (sent) (if (isUrl) "URL sent to Mac!" else "Text sent to Mac!") else "Failed to send (not connected)"
+                                }
                                 shareInputText = ""
                             }
                         },
@@ -687,8 +724,9 @@ fun BridgeDashboard(
                             sample.writeText("Bridge Continuity Document - Shared from Android phone.")
                             val (reqEnv, transferId) = transferManager.initiateTransfer(sample, localDeviceId, "live-session")
                             activeTransferId = transferId
-                            socketServer?.sendEnvelope(reqEnv) ?: socketClient?.sendEnvelope(reqEnv)
-                            lastActionLog = "File transfer started: ${sample.name}"
+                            BridgeConnectionManager.sendEnvelope(reqEnv) { sent ->
+                                lastActionLog = if (sent) "File transfer started: ${sample.name}" else "Failed to send (not connected)"
+                            }
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -787,19 +825,24 @@ fun BridgeDashboard(
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
                 if (clipboardEnabled) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = {
                             val clip = clipboardManager.primaryClip
                             val text = if (clip != null && clip.itemCount > 0) clip.getItemAt(0).text?.toString() else null
+                            println("BridgeApp: Send Clipboard button clicked. text='$text'")
                             if (!text.isNullOrBlank()) {
-                                val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
+                                val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = true)
+                                println("BridgeApp: handleLocalCopy envelope is null? ${env == null}")
                                 if (env != null) {
-                                    val sent = socketServer?.sendEnvelope(env) == true || socketClient?.sendEnvelope(env) == true
-                                    lastActionLog = if (sent) "Sent clipboard: ${text.take(35)}..." else "Cannot send (Mac not connected)"
+                                    BridgeConnectionManager.sendEnvelope(env) { sent ->
+                                        println("BridgeApp: sendEnvelope callback sent=$sent")
+                                        lastActionLog = if (sent) "Sent to Mac: ${text.take(30)}..." else "Cannot send (Mac not connected)"
+                                    }
                                 } else {
-                                    lastActionLog = "Clipboard text unchanged or already sent"
+                                    lastActionLog = "Clipboard text unchanged or rejected"
                                 }
                             } else {
                                 lastActionLog = "Clipboard is currently empty"
@@ -912,7 +955,7 @@ fun BridgeDashboard(
             Text(
                 text = log,
                 color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Bold
             )
         }
     }
