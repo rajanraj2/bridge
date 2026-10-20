@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/home/linuxbrew/.linuxbrew/bin:${PATH}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="${REPO_ROOT}/dist"
 APP_DIR="${DIST_DIR}/Bridge.app"
@@ -18,13 +18,22 @@ cd "${REPO_ROOT}/macos"
 echo "Building release binary..."
 swift build -c release
 
-BIN_PATH="$(swift build -c release --show-bin-path)/BridgeApp"
-if [ ! -f "${BIN_PATH}" ]; then
-    echo "Error: Binary not found at ${BIN_PATH}"
-    exit 1
+BIN_DIR="$(swift build -c release --show-bin-path)"
+if [ -f "${BIN_DIR}/BridgeApp" ]; then
+    cp "${BIN_DIR}/BridgeApp" "${APP_DIR}/Contents/MacOS/BridgeApp"
+elif [ -f "${BIN_DIR}/Bridge" ]; then
+    cp "${BIN_DIR}/Bridge" "${APP_DIR}/Contents/MacOS/BridgeApp"
+else
+    echo "Searching for built binary..."
+    FOUND_BIN="$(find "${REPO_ROOT}/macos/.build" -type f -name "BridgeApp" -perm +111 2>/dev/null | head -n 1 || true)"
+    if [ -n "${FOUND_BIN}" ] && [ -f "${FOUND_BIN}" ]; then
+        cp "${FOUND_BIN}" "${APP_DIR}/Contents/MacOS/BridgeApp"
+    else
+        echo "Error: Could not locate compiled BridgeApp binary"
+        exit 1
+    fi
 fi
 
-cp "${BIN_PATH}" "${APP_DIR}/Contents/MacOS/BridgeApp"
 chmod +x "${APP_DIR}/Contents/MacOS/BridgeApp"
 
 # 2. Write Info.plist
@@ -64,13 +73,14 @@ echo "APPL????" > "${APP_DIR}/Contents/PkgInfo"
 # 3. Create macOS ZIP archive
 cd "${DIST_DIR}"
 echo "Creating Bridge-v0.1.0-macOS.zip..."
+rm -f "Bridge-v0.1.0-macOS.zip"
 zip -r -q "Bridge-v0.1.0-macOS.zip" "Bridge.app"
 
 # 4. If running on macOS with hdiutil, generate DMG
 if command -v hdiutil >/dev/null 2>&1; then
     echo "Creating Bridge-v0.1.0.dmg via hdiutil..."
-    rm -f "Bridge-v0.1.0.dmg"
-    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "Bridge-v0.1.0.dmg"
+    rm -f "${DIST_DIR}/Bridge-v0.1.0.dmg"
+    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "${DIST_DIR}/Bridge-v0.1.0.dmg"
     echo "Created dist/Bridge-v0.1.0.dmg"
 fi
 

@@ -148,6 +148,9 @@ class BridgeSocketServer(
                     }
                 }
             } catch (_: Exception) {}
+            if (ips.isEmpty()) {
+                ips.add("127.0.0.1")
+            }
             return ips
         }
     }

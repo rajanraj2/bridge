@@ -13,6 +13,11 @@ import java.nio.file.Paths
 class ProtocolFixtureTest {
 
     private fun loadFixtureJson(fileName: String): String {
+        val workspace = System.getenv("GITHUB_WORKSPACE")
+        if (workspace != null) {
+            val candidate = File(workspace, "protocol/fixtures/$fileName")
+            if (candidate.exists()) return candidate.readText()
+        }
         // Resolve fixtures directory by walking up from current directory
         var dir = Paths.get("").toAbsolutePath().toFile()
         while (dir != null) {
