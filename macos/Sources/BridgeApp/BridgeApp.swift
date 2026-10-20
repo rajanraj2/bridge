@@ -5,6 +5,7 @@ import BridgeSecurity
 import BridgeNetwork
 import BridgeNotifications
 import BridgeClipboard
+import BridgeTransfers
 
 #if canImport(SwiftUI) && os(macOS)
 import SwiftUI
@@ -45,6 +46,8 @@ public final class BridgeAppModel: ObservableObject {
         }
     }
 
+    @Published public var lastTransferLog: String? = nil
+
     public let deviceId: String
     public let localPublicKey: Data
     public let peerStore: InMemoryTrustedPeerStore
@@ -52,6 +55,8 @@ public final class BridgeAppModel: ObservableObject {
     public let pairingCoordinator: PairingCoordinator
     public let notificationService: NotificationService
     public let clipboardService: ClipboardService
+    public let transferManager: FileTransferManager
+    public let textSharingService: TextSharingService
 
     public var statusIconName: String {
         switch state {
@@ -72,6 +77,8 @@ public final class BridgeAppModel: ObservableObject {
         self.pairingCoordinator = PairingCoordinator(store: store)
         self.notificationService = NotificationService()
         self.clipboardService = ClipboardService()
+        self.transferManager = FileTransferManager()
+        self.textSharingService = TextSharingService()
         self.pairedPeers = store.allPeers()
     }
 
@@ -132,10 +139,40 @@ public final class BridgeAppModel: ObservableObject {
         state = stateMachine.handle(event: .disconnect)
         connectedPeerName = nil
     }
+
+    public func sendSampleFile() {
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("mac_sample_doc.pdf")
+        try? "Sample PDF Document Bytes".data(using: .utf8)?.write(to: tempFile)
+        do {
+            let (_, transferId) = try transferManager.initiateTransfer(
+                sourceURL: tempFile,
+                senderDeviceId: deviceId,
+                sessionId: "active-session"
+            )
+            lastTransferLog = "File sent: \(tempFile.lastPathComponent) (\(transferId))"
+        } catch {
+            lastTransferLog = "Transfer error: \(error.localizedDescription)"
+        }
+    }
+
+    public func sendUrl(_ urlString: String) {
+        do {
+            _ = try textSharingService.createShareEnvelope(
+                content: urlString,
+                isURL: true,
+                senderDeviceId: deviceId,
+                sessionId: "active-session"
+            )
+            lastTransferLog = "URL sent: \(urlString)"
+        } catch {
+            lastTransferLog = "Share error: \(error.localizedDescription)"
+        }
+    }
 }
 
 struct BridgeMenuView: View {
     @ObservedObject var model: BridgeAppModel
+    @State private var shareInput: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -156,6 +193,34 @@ struct BridgeMenuView: View {
                     Text("Connected to: \(peer)")
                         .font(.subheadline)
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Share to Phone")
+                        .font(.caption)
+                        .bold()
+                    TextField("Enter URL or text...", text: $shareInput)
+                        .textFieldStyle(.roundedBorder)
+                    HStack {
+                        Button("Send Text/Link") {
+                            if !shareInput.isEmpty {
+                                model.sendUrl(shareInput)
+                                shareInput = ""
+                            }
+                        }
+                        Button("Send File...") {
+                            model.sendSampleFile()
+                        }
+                    }
+                }
+
+                if let log = model.lastTransferLog {
+                    Text(log)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
                 Button("Disconnect") {
                     model.disconnect()
                 }
@@ -204,7 +269,7 @@ struct BridgeMenuView: View {
             }
         }
         .padding(16)
-        .frame(width: 280)
+        .frame(width: 300)
     }
 }
 
@@ -258,7 +323,7 @@ struct BridgeSettingsView: View {
             Spacer()
         }
         .padding(24)
-        .frame(width: 480, height: 380)
+        .frame(width: 480, height: 420)
     }
 }
 
@@ -280,13 +345,16 @@ struct BridgeApp {
         let sas = coordinator.computeSAS(localIdentity: key, peerIdentity: "PeerKey".data(using: .utf8)!, challenge: challenge.challenge!)
         print("SAS Verification Code: \(sas)")
 
-        let notifService = NotificationService()
-        print("Notification Service initialized (suppressSensitive=\(notifService.filterPolicy.suppressSensitive))")
+        _ = NotificationService()
+        print("Notification Service initialized")
 
-        let clipService = ClipboardService()
-        print("Clipboard Service initialized (preventEchoLoops=\(clipService.policy.preventEchoLoops))")
+        _ = ClipboardService()
+        print("Clipboard Service initialized")
 
-        print("Ready for local discovery, pairing, notifications, and clipboard sync.")
+        _ = FileTransferManager()
+        print("File Transfer Manager initialized (chunkSize=\(FileTransferManager.defaultChunkSize) bytes)")
+
+        print("Ready for pairing, notifications, clipboard, and chunked file transfer.")
     }
 }
 #endif

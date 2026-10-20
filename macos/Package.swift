@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "BridgeNetwork", targets: ["BridgeNetwork"]),
         .library(name: "BridgeNotifications", targets: ["BridgeNotifications"]),
         .library(name: "BridgeClipboard", targets: ["BridgeClipboard"]),
+        .library(name: "BridgeTransfers", targets: ["BridgeTransfers"]),
         .executable(name: "BridgeApp", targets: ["BridgeApp"])
     ],
     dependencies: [
@@ -52,6 +53,11 @@ let package = Package(
             dependencies: ["BridgeDomain", "BridgeProtocol", "BridgeSecurity"],
             path: "Sources/BridgeClipboard"
         ),
+        .target(
+            name: "BridgeTransfers",
+            dependencies: ["BridgeDomain", "BridgeProtocol", "BridgeSecurity"],
+            path: "Sources/BridgeTransfers"
+        ),
         .executableTarget(
             name: "BridgeApp",
             dependencies: [
@@ -60,7 +66,8 @@ let package = Package(
                 "BridgeSecurity",
                 "BridgeNetwork",
                 "BridgeNotifications",
-                "BridgeClipboard"
+                "BridgeClipboard",
+                "BridgeTransfers"
             ],
             path: "Sources/BridgeApp"
         ),
@@ -72,7 +79,8 @@ let package = Package(
                 "BridgeSecurity",
                 "BridgeNetwork",
                 "BridgeNotifications",
-                "BridgeClipboard"
+                "BridgeClipboard",
+                "BridgeTransfers"
             ],
             path: "Tests/BridgeTests"
         )
