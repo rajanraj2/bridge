@@ -1,0 +1,19 @@
+# Local documentation (kept private / not tracked on remote)
+docs/
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Build artifacts & temporary files
+build/
+target/
+dist/
+out/
+*.log
+*.tmp
