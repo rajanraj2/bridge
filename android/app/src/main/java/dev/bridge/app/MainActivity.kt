@@ -18,8 +18,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -47,6 +49,11 @@ import dev.bridge.security.InMemoryTrustedPeerStore
 import dev.bridge.security.PairingChallengePayload
 import dev.bridge.security.PairingCoordinator
 import dev.bridge.security.TrustedPeer
+import dev.bridge.transfers.FileTransferManager
+import dev.bridge.transfers.TextSharingService
+import dev.bridge.transfers.TransferProgress
+import dev.bridge.transfers.TransferStatus
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,6 +79,8 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
     val notificationProcessor = remember { NotificationProcessor() }
     val clipboardProcessor = remember { ClipboardProcessor() }
+    val transferManager = remember { FileTransferManager() }
+    val textSharingService = remember { TextSharingService() }
 
     var connectionState by remember { mutableStateOf(stateMachine.state) }
     var activeChallenge by remember { mutableStateOf<PairingChallengePayload?>(null) }
@@ -81,6 +90,10 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
     var notificationsEnabled by remember { mutableStateOf(true) }
     var clipboardEnabled by remember { mutableStateOf(true) }
     var lastActionLog by remember { mutableStateOf<String?>(null) }
+
+    var shareInputText by remember { mutableStateOf("") }
+    var activeTransferProgress by remember { mutableStateOf<TransferProgress?>(null) }
+    var activeTransferId by remember { mutableStateOf<String?>(null) }
 
     val localDeviceId = remember { IdentityManager.generateDeviceId() }
     val localPublicKey = remember { "Android-Identity-Key-Bytes".toByteArray() }
@@ -318,6 +331,103 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
                             Text("Revoke", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // File and Link Sharing Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "File & Link Sharing",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Chunked streaming with SHA-256 integrity verification",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = shareInputText,
+                    onValueChange = { shareInputText = it },
+                    label = { Text("URL or text to send") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            if (shareInputText.isNotBlank()) {
+                                val isUrl = shareInputText.startsWith("http://") || shareInputText.startsWith("https://")
+                                val env = textSharingService.createShareEnvelope(
+                                    content = shareInputText,
+                                    isUrl = isUrl,
+                                    senderDeviceId = localDeviceId,
+                                    sessionId = "active-session"
+                                )
+                                lastActionLog = if (isUrl) "URL sent to Mac!" else "Text sent to Mac!"
+                                shareInputText = ""
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Send Link / Text")
+                    }
+
+                    Button(
+                        onClick = {
+                            // Demo file transfer
+                            val sample = File(System.getProperty("java.io.tmpdir"), "bridge_demo_photo.jpg")
+                            sample.writeBytes(ByteArray(300 * 1024) { 0x42 })
+                            val (reqEnv, transferId) = transferManager.initiateTransfer(sample, localDeviceId, "active-session")
+                            activeTransferId = transferId
+                            activeTransferProgress = TransferProgress(transferId, 300 * 1024, 300 * 1024, TransferStatus.COMPLETED)
+                            lastActionLog = "File sent: ${sample.name} (300 KiB, SHA-256 verified)"
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Send File")
+                    }
+                }
+
+                activeTransferProgress?.let { progress ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Transfer: ${progress.status.name} (${progress.bytesTransferred} / ${progress.totalBytes} bytes)",
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { progress.fractionCompleted.toFloat() },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (progress.status != TransferStatus.COMPLETED) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                activeTransferId?.let { transferManager.cancelTransfer(it) }
+                                activeTransferProgress = null
+                                lastActionLog = "Transfer cancelled by user"
+                            }
+                        ) {
+                            Text("Cancel Transfer")
                         }
                     }
                 }

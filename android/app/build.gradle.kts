@@ -47,6 +47,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":feature:notifications"))
     implementation(project(":feature:clipboard"))
+    implementation(project(":feature:transfers"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
