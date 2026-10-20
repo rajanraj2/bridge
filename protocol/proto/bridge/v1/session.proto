@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+message Version {
+  uint32 major = 1;
+  uint32 minor = 2;
+}
+
+message Hello {
+  string device_id = 1;
+  string display_name = 2;
+  string platform = 3; // "android" or "macos"
+  repeated Version supported_versions = 4;
+  repeated string capabilities = 5;
+}
+
+message HelloAck {
+  Version selected_version = 1;
+  string session_id = 2;
+  repeated string accepted_capabilities = 3;
+}

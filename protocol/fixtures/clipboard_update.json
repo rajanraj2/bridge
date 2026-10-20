@@ -1,0 +1,18 @@
+{
+  "messageId": "msg-004",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-mac-12345",
+  "sequenceNumber": 3,
+  "createdAtUnixMs": 1729440020000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "clipboardUpdate": {
+    "eventId": "clip-evt-100",
+    "originDeviceId": "dev-mac-12345",
+    "originEventId": "local-clip-50",
+    "contentType": "text/plain",
+    "text": "Hello from macOS clipboard!",
+    "contentSha256": "47deb5f13488219ae0062dfc90ba235ea1586fb80c25d8048679461ac7fef48a",
+    "createdAtUnixMs": 1729440020000
+  }
+}

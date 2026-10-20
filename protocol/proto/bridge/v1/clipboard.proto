@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+message ClipboardUpdate {
+  string event_id = 1;
+  string origin_device_id = 2;
+  string origin_event_id = 3;
+  string content_type = 4; // MVP: text/plain
+  string text = 5;
+  bytes content_sha256 = 6;
+  int64 created_at_unix_ms = 7;
+}

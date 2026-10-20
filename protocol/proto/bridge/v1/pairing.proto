@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+message PairingMessage {
+  string pairing_id = 1;
+  string action = 2; // "request", "confirm", "complete", "revoke"
+  string device_id = 3;
+  bytes public_identity = 4;
+  bytes challenge = 5;
+  int64 expires_at_unix_ms = 6;
+}

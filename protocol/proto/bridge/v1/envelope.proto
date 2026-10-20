@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+import "bridge/v1/session.proto";
+import "bridge/v1/pairing.proto";
+import "bridge/v1/heartbeat.proto";
+import "bridge/v1/error.proto";
+import "bridge/v1/clipboard.proto";
+import "bridge/v1/notification.proto";
+import "bridge/v1/transfer.proto";
+
+// Top-level wire envelope for all Bridge messages.
+message Envelope {
+  string message_id = 1;
+  string session_id = 2;
+  string sender_device_id = 3;
+  uint64 sequence_number = 4;
+  int64 created_at_unix_ms = 5;
+  uint32 protocol_major = 6;
+  uint32 protocol_minor = 7;
+
+  oneof payload {
+    Hello hello = 10;
+    HelloAck hello_ack = 11;
+    PairingMessage pairing = 12;
+    Heartbeat heartbeat = 13;
+    Error error = 14;
+
+    ClipboardUpdate clipboard_update = 20;
+    NotificationEvent notification_event = 21;
+    NotificationAction notification_action = 22;
+    ShareText share_text = 23;
+
+    FileTransferRequest file_request = 30;
+    FileTransferAccept file_accept = 31;
+    FileChunk file_chunk = 32;
+    FileTransferComplete file_complete = 33;
+    FileTransferCancel file_cancel = 34;
+  }
+}

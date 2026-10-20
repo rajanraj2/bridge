@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+message Heartbeat {
+  int64 sent_at_unix_ms = 1;
+}

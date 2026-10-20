@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  UNSUPPORTED_VERSION = 1;
+  UNAUTHENTICATED = 2;
+  UNAUTHORIZED = 3;
+  INVALID_MESSAGE = 4;
+  RATE_LIMITED = 5;
+  RESOURCE_EXHAUSTED = 6;
+  TRANSFER_NOT_FOUND = 7;
+  TRANSFER_REJECTED = 8;
+  INTEGRITY_CHECK_FAILED = 9;
+  PERMISSION_REQUIRED = 10;
+  INTERNAL_ERROR = 11;
+}
+
+message Error {
+  ErrorCode code = 1;
+  string safe_message = 2;
+  string correlation_id = 3;
+  bool retryable = 4;
+}
