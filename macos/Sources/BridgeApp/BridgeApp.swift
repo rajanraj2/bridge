@@ -3,6 +3,8 @@ import BridgeDomain
 import BridgeProtocol
 import BridgeSecurity
 import BridgeNetwork
+import BridgeNotifications
+import BridgeClipboard
 
 #if canImport(SwiftUI) && os(macOS)
 import SwiftUI
@@ -31,11 +33,25 @@ public final class BridgeAppModel: ObservableObject {
     @Published public var activePairingId: String? = nil
     @Published public var pairedPeers: [TrustedPeer] = []
 
+    @Published public var notificationsEnabled: Bool = true {
+        didSet {
+            notificationService.filterPolicy.enabled = notificationsEnabled
+        }
+    }
+
+    @Published public var clipboardEnabled: Bool = true {
+        didSet {
+            clipboardService.policy.enabled = clipboardEnabled
+        }
+    }
+
     public let deviceId: String
     public let localPublicKey: Data
     public let peerStore: InMemoryTrustedPeerStore
     public let stateMachine: ConnectionStateMachine
     public let pairingCoordinator: PairingCoordinator
+    public let notificationService: NotificationService
+    public let clipboardService: ClipboardService
 
     public var statusIconName: String {
         switch state {
@@ -54,6 +70,8 @@ public final class BridgeAppModel: ObservableObject {
         self.peerStore = store
         self.stateMachine = ConnectionStateMachine()
         self.pairingCoordinator = PairingCoordinator(store: store)
+        self.notificationService = NotificationService()
+        self.clipboardService = ClipboardService()
         self.pairedPeers = store.allPeers()
     }
 
@@ -170,6 +188,14 @@ struct BridgeMenuView: View {
             }
 
             Divider()
+
+            Toggle("Mirror Notifications", isOn: $model.notificationsEnabled)
+                .font(.caption)
+
+            Toggle("Sync Clipboard", isOn: $model.clipboardEnabled)
+                .font(.caption)
+
+            Divider()
             Button("Preferences...") {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
@@ -195,6 +221,13 @@ struct BridgeSettingsView: View {
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundColor(.secondary)
             Text("Status: \(model.state.rawValue.capitalized)")
+
+            Divider()
+
+            Text("Capabilities")
+                .font(.headline)
+            Toggle("Mirror Android notifications to macOS", isOn: $model.notificationsEnabled)
+            Toggle("Bidirectional clipboard synchronization", isOn: $model.clipboardEnabled)
 
             Divider()
 
@@ -225,7 +258,7 @@ struct BridgeSettingsView: View {
             Spacer()
         }
         .padding(24)
-        .frame(width: 440, height: 320)
+        .frame(width: 480, height: 380)
     }
 }
 
@@ -246,7 +279,14 @@ struct BridgeApp {
 
         let sas = coordinator.computeSAS(localIdentity: key, peerIdentity: "PeerKey".data(using: .utf8)!, challenge: challenge.challenge!)
         print("SAS Verification Code: \(sas)")
-        print("Ready for local discovery and pairing.")
+
+        let notifService = NotificationService()
+        print("Notification Service initialized (suppressSensitive=\(notifService.filterPolicy.suppressSensitive))")
+
+        let clipService = ClipboardService()
+        print("Clipboard Service initialized (preventEchoLoops=\(clipService.policy.preventEchoLoops))")
+
+        print("Ready for local discovery, pairing, notifications, and clipboard sync.")
     }
 }
 #endif

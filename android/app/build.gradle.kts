@@ -45,6 +45,8 @@ dependencies {
     implementation(project(":core:protocol"))
     implementation(project(":core:security"))
     implementation(project(":core:network"))
+    implementation(project(":feature:notifications"))
+    implementation(project(":feature:clipboard"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
