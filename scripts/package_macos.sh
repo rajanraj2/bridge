@@ -77,22 +77,63 @@ echo "APPL????" > "${APP_DIR}/Contents/PkgInfo"
 # 3. Ad-hoc sign the bundle to prevent Gatekeeper damaged flags
 if command -v codesign >/dev/null 2>&1; then
     echo "Ad-hoc codesigning Bridge.app..."
+    xattr -cr "${APP_DIR}" 2>/dev/null || true
     codesign --force --deep --sign - "${APP_DIR}" || true
 fi
 
-# 3. Create macOS ZIP archive
+# 4. Create macOS ZIP archive
 cd "${DIST_DIR}"
 ZIP_NAME="Bridge-v${VERSION}-macOS.zip"
 echo "Creating ${ZIP_NAME}..."
 rm -f "${ZIP_NAME}"
 zip -r -q "${ZIP_NAME}" "Bridge.app"
 
-# 4. If running on macOS with hdiutil, generate DMG
+# 5. If running on macOS with hdiutil, generate DMG with drag-and-drop & helper
 if command -v hdiutil >/dev/null 2>&1; then
     DMG_NAME="Bridge-v${VERSION}.dmg"
     echo "Creating ${DMG_NAME} via hdiutil..."
+    DMG_STAGING="${DIST_DIR}/dmg_staging"
+    rm -rf "${DMG_STAGING}"
+    mkdir -p "${DMG_STAGING}"
+    cp -R "${APP_DIR}" "${DMG_STAGING}/"
+    ln -s /Applications "${DMG_STAGING}/Applications"
+
+    cat <<'EOF' > "${DMG_STAGING}/Enable Bridge (First Run).command"
+#!/usr/bin/env bash
+echo "========================================="
+echo "Enabling Bridge for macOS Gatekeeper..."
+echo "========================================="
+xattr -cr /Applications/Bridge.app 2>/dev/null || xattr -cr "$(dirname "$0")/Bridge.app" 2>/dev/null
+open -a /Applications/Bridge.app 2>/dev/null || open "$(dirname "$0")/Bridge.app" 2>/dev/null
+echo "Bridge is enabled and launched!"
+EOF
+    chmod +x "${DMG_STAGING}/Enable Bridge (First Run).command"
+
+    cat <<'EOF' > "${DMG_STAGING}/Open Privacy & Security Settings.command"
+#!/usr/bin/env bash
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Security"
+EOF
+    chmod +x "${DMG_STAGING}/Open Privacy & Security Settings.command"
+
+    cat <<'EOF' > "${DMG_STAGING}/FIRST_TIME_OPEN_INSTRUCTIONS.txt"
+HOW TO OPEN BRIDGE ON MACOS:
+-----------------------------------------
+Method 1 (Recommended):
+1. Drag Bridge.app to Applications.
+2. Right-Click (or Control + Click) Bridge.app in Applications, select "Open", and click "Open".
+
+Method 2 (System Settings):
+1. Double-click "Open Privacy & Security Settings.command".
+2. Scroll down to Security, and click "Open Anyway" next to Bridge.
+
+Method 3 (One-Click Helper):
+1. Drag Bridge.app to Applications.
+2. Double-click "Enable Bridge (First Run).command".
+EOF
+
     rm -f "${DIST_DIR}/${DMG_NAME}"
-    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "${DIST_DIR}/${DMG_NAME}"
+    hdiutil create -volname "Bridge" -srcfolder "${DMG_STAGING}" -ov -format UDZO "${DIST_DIR}/${DMG_NAME}"
+    rm -rf "${DMG_STAGING}"
     echo "Created dist/${DMG_NAME}"
 fi
 echo "Successfully packaged macOS application in ${DIST_DIR}:"

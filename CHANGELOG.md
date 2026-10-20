@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.5] - 2026-10-20
+
+### Added
+- **In-App Update Checker**:
+  - Implemented GitHub Releases API update checker on both Android and macOS.
+  - Automatic background checking on launch and manual **"🔄 Check for Updates"** button in settings/dashboard.
+  - Prominent in-app banner displayed when an update is available with a 1-tap **"⬇️ Download & Update"** action.
+- **macOS Gatekeeper Helpers in DMG**:
+  - Packaged DMG with one-click `Enable Bridge (First Run).command` and `Open Privacy & Security Settings.command` to allow installing and opening without typing commands in the terminal.
+  - Added direct "Open Privacy & Security Settings..." option in macOS menu bar and preferences window.
+
+### Fixed
+- **Silent Clipboard Synchronization**:
+  - Removed all Toast pop-ups when copying or syncing clipboard on Android for a clean, non-intrusive background experience.
+
+---
 ## [0.1.3] - 2026-10-20
 
 ### Fixed
