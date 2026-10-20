@@ -40,13 +40,26 @@ class ConnectionStateMachine(
     fun handle(event: ConnectionEvent): ConnectionState {
         when (state) {
             ConnectionState.DISCONNECTED -> {
-                if (event is ConnectionEvent.StartDiscovery) {
-                    state = ConnectionState.DISCOVERING
+                when (event) {
+                    is ConnectionEvent.StartDiscovery -> state = ConnectionState.DISCOVERING
+                    is ConnectionEvent.ConnectionEstablished -> {
+                        currentSession = event.session
+                        currentPeer = event.session.peerDevice
+                        reconnectAttempts = 0
+                        state = ConnectionState.CONNECTED
+                    }
+                    else -> Unit
                 }
             }
 
             ConnectionState.DISCOVERING -> {
                 when (event) {
+                    is ConnectionEvent.ConnectionEstablished -> {
+                        currentSession = event.session
+                        currentPeer = event.session.peerDevice
+                        reconnectAttempts = 0
+                        state = ConnectionState.CONNECTED
+                    }
                     is ConnectionEvent.InitiatePairing -> {
                         currentPeer = event.peer
                         state = ConnectionState.PAIRING

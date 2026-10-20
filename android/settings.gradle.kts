@@ -21,5 +21,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "Bridge"
 include(":app")
+include(":core:security")
+include(":core:network")
 include(":core:domain")
 include(":core:protocol")

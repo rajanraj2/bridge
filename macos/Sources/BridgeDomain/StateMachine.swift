@@ -52,12 +52,13 @@ public final class ConnectionStateMachine: @unchecked Sendable {
             currentPeer = nil
             state = .disconnected
 
-        case (.connecting, .connectionEstablished(let session)):
+        case (.disconnected, .connectionEstablished(let session)),
+             (.discovering, .connectionEstablished(let session)),
+             (.connecting, .connectionEstablished(let session)):
             currentSession = session
             currentPeer = session.peerDevice
             reconnectAttempts = 0
             state = .connected
-
         case (.connecting, .connectionLost(let temporary)):
             if temporary && reconnectAttempts < maxReconnectAttempts {
                 reconnectAttempts += 1

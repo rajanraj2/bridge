@@ -8,5 +8,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:domain"))
+    api(libs.protobuf.java)
     testImplementation(libs.junit)
+    testImplementation(libs.protobuf.java.util)
 }

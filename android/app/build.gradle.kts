@@ -43,6 +43,8 @@ kotlin {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:protocol"))
+    implementation(project(":core:security"))
+    implementation(project(":core:network"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
