@@ -218,7 +218,7 @@ public final class BridgeSocketServer: @unchecked Sendable {
             let isLoopback = (flags & Int(IFF_LOOPBACK)) != 0
             if isUp && !isLoopback && current.pointee.ifa_addr != nil {
                 let family = current.pointee.ifa_addr.pointee.sa_family
-                if family == UInt8(AF_INET) {
+                if Int32(family) == AF_INET {
                     var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
                     let res = getnameinfo(
                         current.pointee.ifa_addr,
@@ -235,6 +235,9 @@ public final class BridgeSocketServer: @unchecked Sendable {
                 }
             }
             ptr = current.pointee.ifa_next
+        }
+        if addresses.isEmpty {
+            addresses.append("127.0.0.1")
         }
         return addresses
     }

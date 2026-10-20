@@ -4,7 +4,15 @@ import Foundation
 
 final class ProtocolFixtureTests: XCTestCase {
     private var fixturesDirectory: URL {
-        var dir = URL(fileURLWithPath: #file)
+        if let workspace = ProcessInfo.processInfo.environment["GITHUB_WORKSPACE"] {
+            let candidate = URL(fileURLWithPath: workspace)
+                .appendingPathComponent("protocol")
+                .appendingPathComponent("fixtures")
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+        var dir = URL(fileURLWithPath: #filePath)
         while dir.path != "/" && dir.path != "." {
             let candidate = dir.appendingPathComponent("protocol").appendingPathComponent("fixtures")
             if FileManager.default.fileExists(atPath: candidate.path) {
@@ -12,12 +20,16 @@ final class ProtocolFixtureTests: XCTestCase {
             }
             dir = dir.deletingLastPathComponent()
         }
-        let cwdCandidate = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("..")
-            .appendingPathComponent("protocol")
-            .appendingPathComponent("fixtures")
-        if FileManager.default.fileExists(atPath: cwdCandidate.path) {
-            return cwdCandidate
+        let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let cwdCandidates = [
+            cwd.appendingPathComponent("protocol/fixtures"),
+            cwd.appendingPathComponent("../protocol/fixtures")
+        ]
+        for candidate in cwdCandidates {
+            let standard = candidate.standardized
+            if FileManager.default.fileExists(atPath: standard.path) {
+                return standard
+            }
         }
         return URL(fileURLWithPath: "/home/zorax/zrx/bridge/protocol/fixtures")
     }

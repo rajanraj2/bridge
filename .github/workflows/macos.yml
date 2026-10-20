@@ -22,13 +22,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
-
       - name: Run Swift Package Tests
         run: |
           cd macos
-          swift test --parallel
+          swift test
 
       - name: Build macOS Executable (Release)
         run: |

@@ -28,7 +28,7 @@ struct BridgeApp: App {
     }
 }
 
-public final class BridgeAppModel: ObservableObject, SocketEventListener {
+public final class BridgeAppModel: @unchecked Sendable, ObservableObject, SocketEventListener {
     @Published public var state: ConnectionState = .disconnected
     @Published public var deviceName: String = Host.current().localizedName ?? "My Mac"
     @Published public var connectedPeerName: String? = nil
