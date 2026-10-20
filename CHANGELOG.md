@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.7] - 2026-10-20
+
+### Added
+- **Automatic System-Wide Background Clipboard Sync**:
+  - Implemented continuous background clipboard change detection in `BridgeForegroundService` across all Android apps.
+  - Introduced transparent focus trampoline (`ClipboardSyncActivity`) to capture copied text from outside apps without manual button presses.
+  - Automatically dispatches copied text to paired Mac over the active socket in real time.
+
+---
 ## [0.1.6] - 2026-10-20
 
 ### Added
