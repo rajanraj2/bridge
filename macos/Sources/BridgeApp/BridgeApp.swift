@@ -17,7 +17,7 @@ struct BridgeApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("Bridge Settings", id: "settings") {
+        Window("Bridge Preferences", id: "settings") {
             BridgeSettingsView(model: model)
         }
     }
@@ -27,6 +27,15 @@ public final class BridgeAppModel: ObservableObject {
     @Published public var state: ConnectionState = .disconnected
     @Published public var deviceName: String = Host.current().localizedName ?? "My Mac"
     @Published public var connectedPeerName: String? = nil
+    @Published public var activeSAS: String? = nil
+    @Published public var activePairingId: String? = nil
+    @Published public var pairedPeers: [TrustedPeer] = []
+
+    public let deviceId: String
+    public let localPublicKey: Data
+    public let peerStore: InMemoryTrustedPeerStore
+    public let stateMachine: ConnectionStateMachine
+    public let pairingCoordinator: PairingCoordinator
 
     public var statusIconName: String {
         switch state {
@@ -38,7 +47,73 @@ public final class BridgeAppModel: ObservableObject {
         }
     }
 
-    public init() {}
+    public init() {
+        self.deviceId = IdentityManager.generateDeviceId()
+        self.localPublicKey = "MacBook-Ed25519-IdentityKeyData".data(using: .utf8)!
+        let store = InMemoryTrustedPeerStore()
+        self.peerStore = store
+        self.stateMachine = ConnectionStateMachine()
+        self.pairingCoordinator = PairingCoordinator(store: store)
+        self.pairedPeers = store.allPeers()
+    }
+
+    public func startPairing() {
+        let challenge = pairingCoordinator.createChallenge(
+            deviceId: deviceId,
+            displayName: deviceName,
+            publicKey: localPublicKey
+        )
+        activePairingId = challenge.pairingId
+        if let challengeData = challenge.challenge {
+            activeSAS = pairingCoordinator.computeSAS(
+                localIdentity: localPublicKey,
+                peerIdentity: "PeerSampleIdentityKeyData".data(using: .utf8)!,
+                challenge: challengeData
+            )
+        }
+        state = stateMachine.handle(event: .startDiscovery)
+    }
+
+    public func confirmPairing() {
+        guard let pairingId = activePairingId else { return }
+        do {
+            _ = try pairingCoordinator.completePairing(
+                pairingId: pairingId,
+                peerDeviceId: "android-sample-peer",
+                peerDisplayName: "Pixel 8 Pro",
+                peerPublicKey: "PeerSampleIdentityKeyData".data(using: .utf8)!,
+                userConfirmed: true
+            )
+            pairedPeers = peerStore.allPeers()
+            activePairingId = nil
+            activeSAS = nil
+            state = stateMachine.handle(event: .pairingSucceeded)
+            connectedPeerName = "Pixel 8 Pro"
+        } catch {
+            activePairingId = nil
+            activeSAS = nil
+            state = stateMachine.handle(event: .pairingFailed(error.localizedDescription))
+        }
+    }
+
+    public func cancelPairing() {
+        activePairingId = nil
+        activeSAS = nil
+        state = stateMachine.handle(event: .disconnect)
+    }
+
+    public func revokePeer(deviceId: String) {
+        _ = pairingCoordinator.revokePeer(deviceId: deviceId)
+        pairedPeers = peerStore.allPeers()
+        if connectedPeerName != nil {
+            disconnect()
+        }
+    }
+
+    public func disconnect() {
+        state = stateMachine.handle(event: .disconnect)
+        connectedPeerName = nil
+    }
 }
 
 struct BridgeMenuView: View {
@@ -55,16 +130,47 @@ struct BridgeMenuView: View {
                     .foregroundColor(model.state == .connected ? .green : .secondary)
             }
             Divider()
+
             if let peer = model.connectedPeerName {
-                Text("Connected to: \(peer)")
-                    .font(.subheadline)
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Connected to: \(peer)")
+                        .font(.subheadline)
+                }
+                Button("Disconnect") {
+                    model.disconnect()
+                }
+            } else if let sas = model.activeSAS {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Pairing in Progress")
+                        .font(.subheadline)
+                        .bold()
+                    Text("Confirm SAS code matches on phone:")
+                        .font(.caption)
+                    Text(sas)
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .foregroundColor(.accentColor)
+                    HStack {
+                        Button("Confirm Match") {
+                            model.confirmPairing()
+                        }
+                        Button("Cancel") {
+                            model.cancelPairing()
+                        }
+                    }
+                }
             } else {
                 Text("No device connected")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                Button("Pair New Device...") {
+                    model.startPairing()
+                }
             }
+
             Divider()
-            Button("Settings...") {
+            Button("Preferences...") {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
             Button("Quit Bridge") {
@@ -72,7 +178,7 @@ struct BridgeMenuView: View {
             }
         }
         .padding(16)
-        .frame(width: 260)
+        .frame(width: 280)
     }
 }
 
@@ -85,11 +191,41 @@ struct BridgeSettingsView: View {
                 .font(.title2)
                 .bold()
             Text("Device: \(model.deviceName)")
+            Text("Device ID: \(model.deviceId)")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.secondary)
             Text("Status: \(model.state.rawValue.capitalized)")
+
+            Divider()
+
+            Text("Paired Devices (\(model.pairedPeers.count))")
+                .font(.headline)
+
+            if model.pairedPeers.isEmpty {
+                Text("No paired devices.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(model.pairedPeers) { peer in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(peer.displayName).bold()
+                            Text(peer.publicKeyFingerprint)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button("Revoke") {
+                            model.revokePeer(deviceId: peer.deviceId)
+                        }
+                    }
+                }
+            }
+
             Spacer()
         }
         .padding(24)
-        .frame(width: 400, height: 250)
+        .frame(width: 440, height: 320)
     }
 }
 
@@ -101,10 +237,16 @@ struct BridgeApp {
         print("Bridge v0.1 — Cross-Platform Core Shell")
         let identity = IdentityManager.generateDeviceId()
         print("Generated Device ID: \(identity)")
-        let sm = ConnectionStateMachine()
-        print("Initial state: \(sm.state)")
-        sm.handle(event: .startDiscovery)
-        print("Transitioned state: \(sm.state)")
+
+        let store = InMemoryTrustedPeerStore()
+        let coordinator = PairingCoordinator(store: store)
+        let key = "MockKeyBytes".data(using: .utf8)!
+        let challenge = coordinator.createChallenge(deviceId: identity, displayName: "Host Device", publicKey: key)
+        print("Pairing Challenge ID: \(challenge.pairingId)")
+
+        let sas = coordinator.computeSAS(localIdentity: key, peerIdentity: "PeerKey".data(using: .utf8)!, challenge: challenge.challenge!)
+        print("SAS Verification Code: \(sas)")
+        print("Ready for local discovery and pairing.")
     }
 }
 #endif

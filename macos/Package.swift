@@ -13,7 +13,9 @@ let package = Package(
         .library(name: "BridgeNetwork", targets: ["BridgeNetwork"]),
         .executable(name: "BridgeApp", targets: ["BridgeApp"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.26.0")
+    ],
     targets: [
         .target(
             name: "BridgeDomain",
@@ -22,7 +24,10 @@ let package = Package(
         ),
         .target(
             name: "BridgeProtocol",
-            dependencies: ["BridgeDomain"],
+            dependencies: [
+                "BridgeDomain",
+                .product(name: "SwiftProtobuf", package: "swift-protobuf")
+            ],
             path: "Sources/BridgeProtocol"
         ),
         .target(
