@@ -17,10 +17,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,10 +34,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bridge.clipboard.ClipboardPolicy
+import dev.bridge.clipboard.ClipboardProcessor
 import dev.bridge.domain.model.Capability
 import dev.bridge.domain.model.ConnectionState
 import dev.bridge.domain.statemachine.ConnectionEvent
 import dev.bridge.domain.statemachine.ConnectionStateMachine
+import dev.bridge.notifications.NotificationFilterPolicy
+import dev.bridge.notifications.NotificationProcessor
 import dev.bridge.security.IdentityManager
 import dev.bridge.security.InMemoryTrustedPeerStore
 import dev.bridge.security.PairingChallengePayload
@@ -65,10 +70,17 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
     val peerStore = remember { InMemoryTrustedPeerStore() }
     val pairingCoordinator = remember { PairingCoordinator(peerStore) }
 
+    val notificationProcessor = remember { NotificationProcessor() }
+    val clipboardProcessor = remember { ClipboardProcessor() }
+
     var connectionState by remember { mutableStateOf(stateMachine.state) }
     var activeChallenge by remember { mutableStateOf<PairingChallengePayload?>(null) }
     var sasCode by remember { mutableStateOf<String?>(null) }
     var pairedDevices by remember { mutableStateOf(peerStore.allPeers()) }
+
+    var notificationsEnabled by remember { mutableStateOf(true) }
+    var clipboardEnabled by remember { mutableStateOf(true) }
+    var lastActionLog by remember { mutableStateOf<String?>(null) }
 
     val localDeviceId = remember { IdentityManager.generateDeviceId() }
     val localPublicKey = remember { "Android-Identity-Key-Bytes".toByteArray() }
@@ -314,29 +326,126 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Capabilities section
+        // Capabilities & Toggles Section
         Text(
-            text = "Capabilities",
+            text = "Capabilities & Permissions",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        Capability.entries.forEach { capability ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(capability.name.replace("_", " "))
-                Text(
-                    text = "Active",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
+        // Notifications Toggle
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Notification Mirroring", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Forwards non-sensitive notifications to paired Mac",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = {
+                            notificationsEnabled = it
+                            notificationProcessor.filterPolicy = NotificationFilterPolicy(enabled = it)
+                        }
+                    )
+                }
+
+                if (notificationsEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val env = notificationProcessor.processNotification(
+                                sourcePackage = "com.sample.messages",
+                                title = "Test Contact",
+                                body = "Bridge test notification payload",
+                                localDeviceId = localDeviceId,
+                                sessionId = "test-session"
+                            )
+                            lastActionLog = if (env != null) "Notification sent!" else "Notification filtered."
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Send Test Notification")
+                    }
+                }
             }
-            Divider()
+        }
+
+        // Clipboard Toggle
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Clipboard Synchronization", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Syncs text clipboard bidirectionally with echo-loop prevention",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = clipboardEnabled,
+                        onCheckedChange = {
+                            clipboardEnabled = it
+                            clipboardProcessor.policy = ClipboardPolicy(enabled = it)
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = clipboardProcessor.policy.diagnosticStatus,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (clipboardEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val env = clipboardProcessor.handleLocalCopy(
+                                text = "Sample clipboard text from Android",
+                                localDeviceId = localDeviceId,
+                                sessionId = "test-session"
+                            )
+                            lastActionLog = if (env != null) "Clipboard copied & forwarded!" else "Clipboard sync filtered."
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Sync Test Clipboard")
+                    }
+                }
+            }
+        }
+
+        lastActionLog?.let { log ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = log,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
