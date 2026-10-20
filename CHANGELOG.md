@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.13] - 2026-10-21
+
+### Added
+- **Android Explicit Permission Setup & Onboarding**:
+  - Introduced a dedicated "App Setup & Permissions" card with clear descriptions and deep-links for each capability: Notification Mirroring, Accessibility Background Sync, Unrestricted Battery, and Foreground Notifications.
+  - Real-time permission tracking on activity resume with green checkmarks when enabled.
+- **UI Decluttering & Progressive Disclosure**:
+  - Collapsed technical identifiers (Device ID, Local IP, Fingerprint, Diagnostic JSON dumps, and internal system checks) into an expandable "Advanced Technical Details & Logs" drawer on both Android and macOS.
+  - Main dashboard and menu bar views now focus strictly on connection status and active continuity toggles.
+
+---
 ## [0.1.12] - 2026-10-21
 
 ### Fixed
