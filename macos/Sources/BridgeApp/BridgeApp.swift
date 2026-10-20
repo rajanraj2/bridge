@@ -179,7 +179,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
         let sentServer = socketServer?.send(envelope: envelope) ?? false
         let sentClient = socketClient?.send(envelope: envelope) ?? false
         if !sentServer && !sentClient {
-            diagnosticLogger.log(category: .network, message: "sendEnvelope: No active socket connection to peer")
+            diagnosticLogger.log(category: .error, message: "sendEnvelope: No active socket connection to peer")
         }
     }
 
