@@ -86,8 +86,10 @@ class BridgeSocketServer(
 ) : Closeable {
     private var serverSocket: ServerSocket? = null
     private val isRunning = AtomicBoolean(false)
-    private var activeConnection: BridgeConnection? = null
+    private val activeConnections = java.util.concurrent.ConcurrentHashMap<String, BridgeConnection>()
 
+    val activePeerCount: Int
+        get() = activeConnections.size
     fun start() {
         if (isRunning.compareAndSet(false, true)) {
             val server = ServerSocket(port)
@@ -98,9 +100,9 @@ class BridgeSocketServer(
                 while (isRunning.get() && !server.isClosed) {
                     try {
                         val clientSocket = server.accept()
-                        activeConnection?.close()
+                        val remoteAddr = clientSocket.inetAddress?.hostAddress ?: "unknown"
                         val connection = BridgeConnection(clientSocket, connectionListener)
-                        activeConnection = connection
+                        activeConnections[remoteAddr] = connection
                         connection.startListening()
                     } catch (e: SocketException) {
                         break
@@ -115,13 +117,27 @@ class BridgeSocketServer(
     }
 
     fun sendEnvelope(envelope: Envelope): Boolean {
-        return activeConnection?.sendEnvelope(envelope) ?: false
+        var anySent = false
+        val dead = mutableListOf<String>()
+        for ((addr, conn) in activeConnections) {
+            if (conn.isConnected) {
+                if (conn.sendEnvelope(envelope)) {
+                    anySent = true
+                }
+            } else {
+                dead.add(addr)
+            }
+        }
+        dead.forEach { activeConnections.remove(it)?.close() }
+        return anySent
     }
 
     override fun close() {
         if (isRunning.compareAndSet(true, false)) {
-            activeConnection?.close()
-            activeConnection = null
+            for ((_, conn) in activeConnections) {
+                conn.close()
+            }
+            activeConnections.clear()
             try {
                 serverSocket?.close()
             } catch (_: Exception) {}
@@ -129,8 +145,7 @@ class BridgeSocketServer(
     }
 
     val hasActiveConnection: Boolean
-        get() = activeConnection?.isConnected == true
-
+        get() = activeConnections.any { it.value.isConnected }
     companion object {
         /**
          * Discovers real local IPv4 addresses (Wi-Fi, Ethernet, or Tailscale)

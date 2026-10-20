@@ -15,148 +15,182 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
 /// Top-level wire envelope for all Bridge messages.
-public struct Bridge_Envelope: Sendable {
+public nonisolated struct Bridge_Envelope: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var messageID: String = String()
+  public var messageID: String {
+    get {_storage._messageID}
+    set {_uniqueStorage()._messageID = newValue}
+  }
 
-  public var sessionID: String = String()
+  public var sessionID: String {
+    get {_storage._sessionID}
+    set {_uniqueStorage()._sessionID = newValue}
+  }
 
-  public var senderDeviceID: String = String()
+  public var senderDeviceID: String {
+    get {_storage._senderDeviceID}
+    set {_uniqueStorage()._senderDeviceID = newValue}
+  }
 
-  public var sequenceNumber: UInt64 = 0
+  public var sequenceNumber: UInt64 {
+    get {_storage._sequenceNumber}
+    set {_uniqueStorage()._sequenceNumber = newValue}
+  }
 
-  public var createdAtUnixMs: Int64 = 0
+  public var createdAtUnixMs: Int64 {
+    get {_storage._createdAtUnixMs}
+    set {_uniqueStorage()._createdAtUnixMs = newValue}
+  }
 
-  public var protocolMajor: UInt32 = 0
+  public var protocolMajor: UInt32 {
+    get {_storage._protocolMajor}
+    set {_uniqueStorage()._protocolMajor = newValue}
+  }
 
-  public var protocolMinor: UInt32 = 0
+  public var protocolMinor: UInt32 {
+    get {_storage._protocolMinor}
+    set {_uniqueStorage()._protocolMinor = newValue}
+  }
 
-  public var payload: Bridge_Envelope.OneOf_Payload? = nil
+  public var targetDeviceID: String {
+    get {_storage._targetDeviceID}
+    set {_uniqueStorage()._targetDeviceID = newValue}
+  }
+
+  public var visitedDeviceIds: [String] {
+    get {_storage._visitedDeviceIds}
+    set {_uniqueStorage()._visitedDeviceIds = newValue}
+  }
+
+  public var payload: OneOf_Payload? {
+    get {return _storage._payload}
+    set {_uniqueStorage()._payload = newValue}
+  }
 
   public var hello: Bridge_Hello {
     get {
-      if case .hello(let v)? = payload {return v}
+      if case .hello(let v)? = _storage._payload {return v}
       return Bridge_Hello()
     }
-    set {payload = .hello(newValue)}
+    set {_uniqueStorage()._payload = .hello(newValue)}
   }
 
   public var helloAck: Bridge_HelloAck {
     get {
-      if case .helloAck(let v)? = payload {return v}
+      if case .helloAck(let v)? = _storage._payload {return v}
       return Bridge_HelloAck()
     }
-    set {payload = .helloAck(newValue)}
+    set {_uniqueStorage()._payload = .helloAck(newValue)}
   }
 
   public var pairing: Bridge_PairingMessage {
     get {
-      if case .pairing(let v)? = payload {return v}
+      if case .pairing(let v)? = _storage._payload {return v}
       return Bridge_PairingMessage()
     }
-    set {payload = .pairing(newValue)}
+    set {_uniqueStorage()._payload = .pairing(newValue)}
   }
 
   public var heartbeat: Bridge_Heartbeat {
     get {
-      if case .heartbeat(let v)? = payload {return v}
+      if case .heartbeat(let v)? = _storage._payload {return v}
       return Bridge_Heartbeat()
     }
-    set {payload = .heartbeat(newValue)}
+    set {_uniqueStorage()._payload = .heartbeat(newValue)}
   }
 
   public var error: Bridge_Error {
     get {
-      if case .error(let v)? = payload {return v}
+      if case .error(let v)? = _storage._payload {return v}
       return Bridge_Error()
     }
-    set {payload = .error(newValue)}
+    set {_uniqueStorage()._payload = .error(newValue)}
   }
 
   public var clipboardUpdate: Bridge_ClipboardUpdate {
     get {
-      if case .clipboardUpdate(let v)? = payload {return v}
+      if case .clipboardUpdate(let v)? = _storage._payload {return v}
       return Bridge_ClipboardUpdate()
     }
-    set {payload = .clipboardUpdate(newValue)}
+    set {_uniqueStorage()._payload = .clipboardUpdate(newValue)}
   }
 
   public var notificationEvent: Bridge_NotificationEvent {
     get {
-      if case .notificationEvent(let v)? = payload {return v}
+      if case .notificationEvent(let v)? = _storage._payload {return v}
       return Bridge_NotificationEvent()
     }
-    set {payload = .notificationEvent(newValue)}
+    set {_uniqueStorage()._payload = .notificationEvent(newValue)}
   }
 
   public var notificationAction: Bridge_NotificationAction {
     get {
-      if case .notificationAction(let v)? = payload {return v}
+      if case .notificationAction(let v)? = _storage._payload {return v}
       return Bridge_NotificationAction()
     }
-    set {payload = .notificationAction(newValue)}
+    set {_uniqueStorage()._payload = .notificationAction(newValue)}
   }
 
   public var shareText: Bridge_ShareText {
     get {
-      if case .shareText(let v)? = payload {return v}
+      if case .shareText(let v)? = _storage._payload {return v}
       return Bridge_ShareText()
     }
-    set {payload = .shareText(newValue)}
+    set {_uniqueStorage()._payload = .shareText(newValue)}
   }
 
   public var fileRequest: Bridge_FileTransferRequest {
     get {
-      if case .fileRequest(let v)? = payload {return v}
+      if case .fileRequest(let v)? = _storage._payload {return v}
       return Bridge_FileTransferRequest()
     }
-    set {payload = .fileRequest(newValue)}
+    set {_uniqueStorage()._payload = .fileRequest(newValue)}
   }
 
   public var fileAccept: Bridge_FileTransferAccept {
     get {
-      if case .fileAccept(let v)? = payload {return v}
+      if case .fileAccept(let v)? = _storage._payload {return v}
       return Bridge_FileTransferAccept()
     }
-    set {payload = .fileAccept(newValue)}
+    set {_uniqueStorage()._payload = .fileAccept(newValue)}
   }
 
   public var fileChunk: Bridge_FileChunk {
     get {
-      if case .fileChunk(let v)? = payload {return v}
+      if case .fileChunk(let v)? = _storage._payload {return v}
       return Bridge_FileChunk()
     }
-    set {payload = .fileChunk(newValue)}
+    set {_uniqueStorage()._payload = .fileChunk(newValue)}
   }
 
   public var fileComplete: Bridge_FileTransferComplete {
     get {
-      if case .fileComplete(let v)? = payload {return v}
+      if case .fileComplete(let v)? = _storage._payload {return v}
       return Bridge_FileTransferComplete()
     }
-    set {payload = .fileComplete(newValue)}
+    set {_uniqueStorage()._payload = .fileComplete(newValue)}
   }
 
   public var fileCancel: Bridge_FileTransferCancel {
     get {
-      if case .fileCancel(let v)? = payload {return v}
+      if case .fileCancel(let v)? = _storage._payload {return v}
       return Bridge_FileTransferCancel()
     }
-    set {payload = .fileCancel(newValue)}
+    set {_uniqueStorage()._payload = .fileCancel(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Payload: Equatable, Sendable {
+  public nonisolated enum OneOf_Payload: Equatable, Sendable {
     case hello(Bridge_Hello)
     case helloAck(Bridge_HelloAck)
     case pairing(Bridge_PairingMessage)
@@ -175,313 +209,379 @@ public struct Bridge_Envelope: Sendable {
   }
 
   public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "bridge.v1"
+fileprivate nonisolated let _protobuf_package = "bridge.v1"
 
-extension Bridge_Envelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Bridge_Envelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Envelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}session_id\0\u{3}sender_device_id\0\u{3}sequence_number\0\u{3}created_at_unix_ms\0\u{3}protocol_major\0\u{3}protocol_minor\0\u{2}\u{3}hello\0\u{3}hello_ack\0\u{1}pairing\0\u{1}heartbeat\0\u{1}error\0\u{4}\u{6}clipboard_update\0\u{3}notification_event\0\u{3}notification_action\0\u{3}share_text\0\u{4}\u{7}file_request\0\u{3}file_accept\0\u{3}file_chunk\0\u{3}file_complete\0\u{3}file_cancel\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}session_id\0\u{3}sender_device_id\0\u{3}sequence_number\0\u{3}created_at_unix_ms\0\u{3}protocol_major\0\u{3}protocol_minor\0\u{3}target_device_id\0\u{3}visited_device_ids\0\u{1}hello\0\u{3}hello_ack\0\u{1}pairing\0\u{1}heartbeat\0\u{1}error\0\u{4}\u{6}clipboard_update\0\u{3}notification_event\0\u{3}notification_action\0\u{3}share_text\0\u{4}\u{7}file_request\0\u{3}file_accept\0\u{3}file_chunk\0\u{3}file_complete\0\u{3}file_cancel\0")
+
+  fileprivate class _StorageClass {
+    var _messageID: String = String()
+    var _sessionID: String = String()
+    var _senderDeviceID: String = String()
+    var _sequenceNumber: UInt64 = 0
+    var _createdAtUnixMs: Int64 = 0
+    var _protocolMajor: UInt32 = 0
+    var _protocolMinor: UInt32 = 0
+    var _targetDeviceID: String = String()
+    var _visitedDeviceIds: [String] = []
+    var _payload: Bridge_Envelope.OneOf_Payload?
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _messageID = source._messageID
+      _sessionID = source._sessionID
+      _senderDeviceID = source._senderDeviceID
+      _sequenceNumber = source._sequenceNumber
+      _createdAtUnixMs = source._createdAtUnixMs
+      _protocolMajor = source._protocolMajor
+      _protocolMinor = source._protocolMinor
+      _targetDeviceID = source._targetDeviceID
+      _visitedDeviceIds = source._visitedDeviceIds
+      _payload = source._payload
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.messageID) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.senderDeviceID) }()
-      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.sequenceNumber) }()
-      case 5: try { try decoder.decodeSingularInt64Field(value: &self.createdAtUnixMs) }()
-      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.protocolMajor) }()
-      case 7: try { try decoder.decodeSingularUInt32Field(value: &self.protocolMinor) }()
-      case 10: try {
-        var v: Bridge_Hello?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .hello(let m) = current {v = m}
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._messageID) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._sessionID) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._senderDeviceID) }()
+        case 4: try { try decoder.decodeSingularUInt64Field(value: &_storage._sequenceNumber) }()
+        case 5: try { try decoder.decodeSingularInt64Field(value: &_storage._createdAtUnixMs) }()
+        case 6: try { try decoder.decodeSingularUInt32Field(value: &_storage._protocolMajor) }()
+        case 7: try { try decoder.decodeSingularUInt32Field(value: &_storage._protocolMinor) }()
+        case 8: try { try decoder.decodeSingularStringField(value: &_storage._targetDeviceID) }()
+        case 9: try { try decoder.decodeRepeatedStringField(value: &_storage._visitedDeviceIds) }()
+        case 10: try {
+          var v: Bridge_Hello?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .hello(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .hello(v)
+          }
+        }()
+        case 11: try {
+          var v: Bridge_HelloAck?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .helloAck(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .helloAck(v)
+          }
+        }()
+        case 12: try {
+          var v: Bridge_PairingMessage?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .pairing(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .pairing(v)
+          }
+        }()
+        case 13: try {
+          var v: Bridge_Heartbeat?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .heartbeat(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .heartbeat(v)
+          }
+        }()
+        case 14: try {
+          var v: Bridge_Error?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .error(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .error(v)
+          }
+        }()
+        case 20: try {
+          var v: Bridge_ClipboardUpdate?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .clipboardUpdate(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .clipboardUpdate(v)
+          }
+        }()
+        case 21: try {
+          var v: Bridge_NotificationEvent?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .notificationEvent(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .notificationEvent(v)
+          }
+        }()
+        case 22: try {
+          var v: Bridge_NotificationAction?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .notificationAction(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .notificationAction(v)
+          }
+        }()
+        case 23: try {
+          var v: Bridge_ShareText?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .shareText(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .shareText(v)
+          }
+        }()
+        case 30: try {
+          var v: Bridge_FileTransferRequest?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .fileRequest(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .fileRequest(v)
+          }
+        }()
+        case 31: try {
+          var v: Bridge_FileTransferAccept?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .fileAccept(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .fileAccept(v)
+          }
+        }()
+        case 32: try {
+          var v: Bridge_FileChunk?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .fileChunk(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .fileChunk(v)
+          }
+        }()
+        case 33: try {
+          var v: Bridge_FileTransferComplete?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .fileComplete(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .fileComplete(v)
+          }
+        }()
+        case 34: try {
+          var v: Bridge_FileTransferCancel?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .fileCancel(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .fileCancel(v)
+          }
+        }()
+        default: break
         }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .hello(v)
-        }
-      }()
-      case 11: try {
-        var v: Bridge_HelloAck?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .helloAck(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .helloAck(v)
-        }
-      }()
-      case 12: try {
-        var v: Bridge_PairingMessage?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .pairing(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .pairing(v)
-        }
-      }()
-      case 13: try {
-        var v: Bridge_Heartbeat?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .heartbeat(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .heartbeat(v)
-        }
-      }()
-      case 14: try {
-        var v: Bridge_Error?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .error(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .error(v)
-        }
-      }()
-      case 20: try {
-        var v: Bridge_ClipboardUpdate?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .clipboardUpdate(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .clipboardUpdate(v)
-        }
-      }()
-      case 21: try {
-        var v: Bridge_NotificationEvent?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .notificationEvent(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .notificationEvent(v)
-        }
-      }()
-      case 22: try {
-        var v: Bridge_NotificationAction?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .notificationAction(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .notificationAction(v)
-        }
-      }()
-      case 23: try {
-        var v: Bridge_ShareText?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .shareText(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .shareText(v)
-        }
-      }()
-      case 30: try {
-        var v: Bridge_FileTransferRequest?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .fileRequest(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .fileRequest(v)
-        }
-      }()
-      case 31: try {
-        var v: Bridge_FileTransferAccept?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .fileAccept(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .fileAccept(v)
-        }
-      }()
-      case 32: try {
-        var v: Bridge_FileChunk?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .fileChunk(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .fileChunk(v)
-        }
-      }()
-      case 33: try {
-        var v: Bridge_FileTransferComplete?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .fileComplete(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .fileComplete(v)
-        }
-      }()
-      case 34: try {
-        var v: Bridge_FileTransferCancel?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .fileCancel(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .fileCancel(v)
-        }
-      }()
-      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.messageID.isEmpty {
-      try visitor.visitSingularStringField(value: self.messageID, fieldNumber: 1)
-    }
-    if !self.sessionID.isEmpty {
-      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 2)
-    }
-    if !self.senderDeviceID.isEmpty {
-      try visitor.visitSingularStringField(value: self.senderDeviceID, fieldNumber: 3)
-    }
-    if self.sequenceNumber != 0 {
-      try visitor.visitSingularUInt64Field(value: self.sequenceNumber, fieldNumber: 4)
-    }
-    if self.createdAtUnixMs != 0 {
-      try visitor.visitSingularInt64Field(value: self.createdAtUnixMs, fieldNumber: 5)
-    }
-    if self.protocolMajor != 0 {
-      try visitor.visitSingularUInt32Field(value: self.protocolMajor, fieldNumber: 6)
-    }
-    if self.protocolMinor != 0 {
-      try visitor.visitSingularUInt32Field(value: self.protocolMinor, fieldNumber: 7)
-    }
-    switch self.payload {
-    case .hello?: try {
-      guard case .hello(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
-    }()
-    case .helloAck?: try {
-      guard case .helloAck(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    }()
-    case .pairing?: try {
-      guard case .pairing(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
-    }()
-    case .heartbeat?: try {
-      guard case .heartbeat(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
-    }()
-    case .error?: try {
-      guard case .error(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
-    }()
-    case .clipboardUpdate?: try {
-      guard case .clipboardUpdate(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
-    }()
-    case .notificationEvent?: try {
-      guard case .notificationEvent(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
-    }()
-    case .notificationAction?: try {
-      guard case .notificationAction(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
-    }()
-    case .shareText?: try {
-      guard case .shareText(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
-    }()
-    case .fileRequest?: try {
-      guard case .fileRequest(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
-    }()
-    case .fileAccept?: try {
-      guard case .fileAccept(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
-    }()
-    case .fileChunk?: try {
-      guard case .fileChunk(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 32)
-    }()
-    case .fileComplete?: try {
-      guard case .fileComplete(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 33)
-    }()
-    case .fileCancel?: try {
-      guard case .fileCancel(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 34)
-    }()
-    case nil: break
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._messageID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._messageID, fieldNumber: 1)
+      }
+      if !_storage._sessionID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._sessionID, fieldNumber: 2)
+      }
+      if !_storage._senderDeviceID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._senderDeviceID, fieldNumber: 3)
+      }
+      if _storage._sequenceNumber != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._sequenceNumber, fieldNumber: 4)
+      }
+      if _storage._createdAtUnixMs != 0 {
+        try visitor.visitSingularInt64Field(value: _storage._createdAtUnixMs, fieldNumber: 5)
+      }
+      if _storage._protocolMajor != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._protocolMajor, fieldNumber: 6)
+      }
+      if _storage._protocolMinor != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._protocolMinor, fieldNumber: 7)
+      }
+      if !_storage._targetDeviceID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._targetDeviceID, fieldNumber: 8)
+      }
+      if !_storage._visitedDeviceIds.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._visitedDeviceIds, fieldNumber: 9)
+      }
+      switch _storage._payload {
+      case .hello?: try {
+        guard case .hello(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      }()
+      case .helloAck?: try {
+        guard case .helloAck(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      }()
+      case .pairing?: try {
+        guard case .pairing(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      }()
+      case .heartbeat?: try {
+        guard case .heartbeat(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      }()
+      case .error?: try {
+        guard case .error(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      }()
+      case .clipboardUpdate?: try {
+        guard case .clipboardUpdate(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+      }()
+      case .notificationEvent?: try {
+        guard case .notificationEvent(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+      }()
+      case .notificationAction?: try {
+        guard case .notificationAction(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+      }()
+      case .shareText?: try {
+        guard case .shareText(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+      }()
+      case .fileRequest?: try {
+        guard case .fileRequest(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
+      }()
+      case .fileAccept?: try {
+        guard case .fileAccept(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
+      }()
+      case .fileChunk?: try {
+        guard case .fileChunk(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 32)
+      }()
+      case .fileComplete?: try {
+        guard case .fileComplete(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 33)
+      }()
+      case .fileCancel?: try {
+        guard case .fileCancel(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 34)
+      }()
+      case nil: break
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Bridge_Envelope, rhs: Bridge_Envelope) -> Bool {
-    if lhs.messageID != rhs.messageID {return false}
-    if lhs.sessionID != rhs.sessionID {return false}
-    if lhs.senderDeviceID != rhs.senderDeviceID {return false}
-    if lhs.sequenceNumber != rhs.sequenceNumber {return false}
-    if lhs.createdAtUnixMs != rhs.createdAtUnixMs {return false}
-    if lhs.protocolMajor != rhs.protocolMajor {return false}
-    if lhs.protocolMinor != rhs.protocolMinor {return false}
-    if lhs.payload != rhs.payload {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._messageID != rhs_storage._messageID {return false}
+        if _storage._sessionID != rhs_storage._sessionID {return false}
+        if _storage._senderDeviceID != rhs_storage._senderDeviceID {return false}
+        if _storage._sequenceNumber != rhs_storage._sequenceNumber {return false}
+        if _storage._createdAtUnixMs != rhs_storage._createdAtUnixMs {return false}
+        if _storage._protocolMajor != rhs_storage._protocolMajor {return false}
+        if _storage._protocolMinor != rhs_storage._protocolMinor {return false}
+        if _storage._targetDeviceID != rhs_storage._targetDeviceID {return false}
+        if _storage._visitedDeviceIds != rhs_storage._visitedDeviceIds {return false}
+        if _storage._payload != rhs_storage._payload {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

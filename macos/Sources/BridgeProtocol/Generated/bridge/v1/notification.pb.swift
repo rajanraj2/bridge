@@ -15,12 +15,12 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
-public struct Bridge_NotificationActionDescriptor: Sendable {
+public nonisolated struct Bridge_NotificationActionDescriptor: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -36,7 +36,7 @@ public struct Bridge_NotificationActionDescriptor: Sendable {
   public init() {}
 }
 
-public struct Bridge_NotificationEvent: Sendable {
+public nonisolated struct Bridge_NotificationEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -64,7 +64,7 @@ public struct Bridge_NotificationEvent: Sendable {
   public init() {}
 }
 
-public struct Bridge_NotificationAction: Sendable {
+public nonisolated struct Bridge_NotificationAction: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -82,9 +82,9 @@ public struct Bridge_NotificationAction: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "bridge.v1"
+fileprivate nonisolated let _protobuf_package = "bridge.v1"
 
-extension Bridge_NotificationActionDescriptor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Bridge_NotificationActionDescriptor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NotificationActionDescriptor"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}action_id\0\u{1}label\0\u{3}requires_text_input\0")
 
@@ -124,7 +124,7 @@ extension Bridge_NotificationActionDescriptor: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-extension Bridge_NotificationEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Bridge_NotificationEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NotificationEvent"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}event_id\0\u{3}origin_device_id\0\u{3}source_package_or_bundle_id\0\u{1}title\0\u{1}body\0\u{1}category\0\u{3}posted_at_unix_ms\0\u{3}is_sensitive\0\u{1}actions\0")
 
@@ -194,7 +194,7 @@ extension Bridge_NotificationEvent: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Bridge_NotificationAction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Bridge_NotificationAction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NotificationAction"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}event_id\0\u{3}action_id\0\u{3}text_input\0")
 

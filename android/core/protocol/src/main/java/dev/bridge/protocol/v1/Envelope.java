@@ -35,6 +35,9 @@ private static final long serialVersionUID = 0L;
     messageId_ = "";
     sessionId_ = "";
     senderDeviceId_ = "";
+    targetDeviceId_ = "";
+    visitedDeviceIds_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
   }
 
   public static final com.google.protobuf.Descriptors.Descriptor
@@ -280,6 +283,82 @@ private static final long serialVersionUID = 0L;
   @java.lang.Override
   public int getProtocolMinor() {
     return protocolMinor_;
+  }
+
+  public static final int TARGET_DEVICE_ID_FIELD_NUMBER = 8;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object targetDeviceId_ = "";
+  /**
+   * <code>string target_device_id = 8;</code>
+   * @return The targetDeviceId.
+   */
+  @java.lang.Override
+  public java.lang.String getTargetDeviceId() {
+    java.lang.Object ref = targetDeviceId_;
+    if (ref instanceof java.lang.String) {
+      return (java.lang.String) ref;
+    } else {
+      com.google.protobuf.ByteString bs = 
+          (com.google.protobuf.ByteString) ref;
+      java.lang.String s = bs.toStringUtf8();
+      targetDeviceId_ = s;
+      return s;
+    }
+  }
+  /**
+   * <code>string target_device_id = 8;</code>
+   * @return The bytes for targetDeviceId.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString
+      getTargetDeviceIdBytes() {
+    java.lang.Object ref = targetDeviceId_;
+    if (ref instanceof java.lang.String) {
+      com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString.copyFromUtf8(
+              (java.lang.String) ref);
+      targetDeviceId_ = b;
+      return b;
+    } else {
+      return (com.google.protobuf.ByteString) ref;
+    }
+  }
+
+  public static final int VISITED_DEVICE_IDS_FIELD_NUMBER = 9;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.LazyStringArrayList visitedDeviceIds_ =
+      com.google.protobuf.LazyStringArrayList.emptyList();
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @return A list containing the visitedDeviceIds.
+   */
+  public com.google.protobuf.ProtocolStringList
+      getVisitedDeviceIdsList() {
+    return visitedDeviceIds_;
+  }
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @return The count of visitedDeviceIds.
+   */
+  public int getVisitedDeviceIdsCount() {
+    return visitedDeviceIds_.size();
+  }
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @param index The index of the element to return.
+   * @return The visitedDeviceIds at the given index.
+   */
+  public java.lang.String getVisitedDeviceIds(int index) {
+    return visitedDeviceIds_.get(index);
+  }
+  /**
+   * <code>repeated string visited_device_ids = 9;</code>
+   * @param index The index of the value to return.
+   * @return The bytes of the visitedDeviceIds at the given index.
+   */
+  public com.google.protobuf.ByteString
+      getVisitedDeviceIdsBytes(int index) {
+    return visitedDeviceIds_.getByteString(index);
   }
 
   public static final int HELLO_FIELD_NUMBER = 10;
@@ -751,6 +830,12 @@ private static final long serialVersionUID = 0L;
     if (protocolMinor_ != 0) {
       output.writeUInt32(7, protocolMinor_);
     }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(targetDeviceId_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 8, targetDeviceId_);
+    }
+    for (int i = 0; i < visitedDeviceIds_.size(); i++) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 9, visitedDeviceIds_.getRaw(i));
+    }
     if (payloadCase_ == 10) {
       output.writeMessage(10, (dev.bridge.protocol.v1.Hello) payload_);
     }
@@ -821,6 +906,17 @@ private static final long serialVersionUID = 0L;
     if (protocolMinor_ != 0) {
       size += com.google.protobuf.CodedOutputStream
         .computeUInt32Size(7, protocolMinor_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(targetDeviceId_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(8, targetDeviceId_);
+    }
+    {
+      int dataSize = 0;
+      for (int i = 0; i < visitedDeviceIds_.size(); i++) {
+        dataSize += computeStringSizeNoTag(visitedDeviceIds_.getRaw(i));
+      }
+      size += dataSize;
+      size += 1 * getVisitedDeviceIdsList().size();
     }
     if (payloadCase_ == 10) {
       size += com.google.protobuf.CodedOutputStream
@@ -916,6 +1012,10 @@ private static final long serialVersionUID = 0L;
         != other.getProtocolMajor()) return false;
     if (getProtocolMinor()
         != other.getProtocolMinor()) return false;
+    if (!getTargetDeviceId()
+        .equals(other.getTargetDeviceId())) return false;
+    if (!getVisitedDeviceIdsList()
+        .equals(other.getVisitedDeviceIdsList())) return false;
     if (!getPayloadCase().equals(other.getPayloadCase())) return false;
     switch (payloadCase_) {
       case 10:
@@ -1004,6 +1104,12 @@ private static final long serialVersionUID = 0L;
     hash = (53 * hash) + getProtocolMajor();
     hash = (37 * hash) + PROTOCOL_MINOR_FIELD_NUMBER;
     hash = (53 * hash) + getProtocolMinor();
+    hash = (37 * hash) + TARGET_DEVICE_ID_FIELD_NUMBER;
+    hash = (53 * hash) + getTargetDeviceId().hashCode();
+    if (getVisitedDeviceIdsCount() > 0) {
+      hash = (37 * hash) + VISITED_DEVICE_IDS_FIELD_NUMBER;
+      hash = (53 * hash) + getVisitedDeviceIdsList().hashCode();
+    }
     switch (payloadCase_) {
       case 10:
         hash = (37 * hash) + HELLO_FIELD_NUMBER;
@@ -1206,6 +1312,9 @@ private static final long serialVersionUID = 0L;
       createdAtUnixMs_ = 0L;
       protocolMajor_ = 0;
       protocolMinor_ = 0;
+      targetDeviceId_ = "";
+      visitedDeviceIds_ =
+          com.google.protobuf.LazyStringArrayList.emptyList();
       if (helloBuilder_ != null) {
         helloBuilder_.clear();
       }
@@ -1304,6 +1413,13 @@ private static final long serialVersionUID = 0L;
       }
       if (((from_bitField0_ & 0x00000040) != 0)) {
         result.protocolMinor_ = protocolMinor_;
+      }
+      if (((from_bitField0_ & 0x00000080) != 0)) {
+        result.targetDeviceId_ = targetDeviceId_;
+      }
+      if (((from_bitField0_ & 0x00000100) != 0)) {
+        visitedDeviceIds_.makeImmutable();
+        result.visitedDeviceIds_ = visitedDeviceIds_;
       }
     }
 
@@ -1406,6 +1522,21 @@ private static final long serialVersionUID = 0L;
       }
       if (other.getProtocolMinor() != 0) {
         setProtocolMinor(other.getProtocolMinor());
+      }
+      if (!other.getTargetDeviceId().isEmpty()) {
+        targetDeviceId_ = other.targetDeviceId_;
+        bitField0_ |= 0x00000080;
+        onChanged();
+      }
+      if (!other.visitedDeviceIds_.isEmpty()) {
+        if (visitedDeviceIds_.isEmpty()) {
+          visitedDeviceIds_ = other.visitedDeviceIds_;
+          bitField0_ |= 0x00000100;
+        } else {
+          ensureVisitedDeviceIdsIsMutable();
+          visitedDeviceIds_.addAll(other.visitedDeviceIds_);
+        }
+        onChanged();
       }
       switch (other.getPayloadCase()) {
         case HELLO: {
@@ -1527,6 +1658,16 @@ private static final long serialVersionUID = 0L;
               bitField0_ |= 0x00000040;
               break;
             } // case 56
+            case 66: {
+              targetDeviceId_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000080;
+              break;
+            } // case 66
+            case 74: {
+              ensureVisitedDeviceIdsIsMutable();
+              visitedDeviceIds_.add(input.readStringRequireUtf8());
+              break;
+            } // case 74
             case 82: {
               input.readMessage(
                   internalGetHelloFieldBuilder().getBuilder(),
@@ -1997,6 +2138,189 @@ private static final long serialVersionUID = 0L;
     public Builder clearProtocolMinor() {
       bitField0_ = (bitField0_ & ~0x00000040);
       protocolMinor_ = 0;
+      onChanged();
+      return this;
+    }
+
+    private java.lang.Object targetDeviceId_ = "";
+    /**
+     * <code>string target_device_id = 8;</code>
+     * @return The targetDeviceId.
+     */
+    public java.lang.String getTargetDeviceId() {
+      java.lang.Object ref = targetDeviceId_;
+      if (!(ref instanceof java.lang.String)) {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        targetDeviceId_ = s;
+        return s;
+      } else {
+        return (java.lang.String) ref;
+      }
+    }
+    /**
+     * <code>string target_device_id = 8;</code>
+     * @return The bytes for targetDeviceId.
+     */
+    public com.google.protobuf.ByteString
+        getTargetDeviceIdBytes() {
+      java.lang.Object ref = targetDeviceId_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        targetDeviceId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    /**
+     * <code>string target_device_id = 8;</code>
+     * @param value The targetDeviceId to set.
+     * @return This builder for chaining.
+     */
+    public Builder setTargetDeviceId(
+        java.lang.String value) {
+      java.util.Objects.requireNonNull(value);
+      targetDeviceId_ = value;
+      bitField0_ |= 0x00000080;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string target_device_id = 8;</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearTargetDeviceId() {
+      targetDeviceId_ = getDefaultInstance().getTargetDeviceId();
+      bitField0_ = (bitField0_ & ~0x00000080);
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string target_device_id = 8;</code>
+     * @param value The bytes for targetDeviceId to set.
+     * @return This builder for chaining.
+     */
+    public Builder setTargetDeviceIdBytes(
+        com.google.protobuf.ByteString value) {
+      java.util.Objects.requireNonNull(value);
+      checkByteStringIsUtf8(value);
+      targetDeviceId_ = value;
+      bitField0_ |= 0x00000080;
+      onChanged();
+      return this;
+    }
+
+    private com.google.protobuf.LazyStringArrayList visitedDeviceIds_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
+    private void ensureVisitedDeviceIdsIsMutable() {
+      if (!visitedDeviceIds_.isModifiable()) {
+        visitedDeviceIds_ = new com.google.protobuf.LazyStringArrayList(visitedDeviceIds_);
+      }
+      bitField0_ |= 0x00000100;
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @return A list containing the visitedDeviceIds.
+     */
+    public com.google.protobuf.ProtocolStringList
+        getVisitedDeviceIdsList() {
+      visitedDeviceIds_.makeImmutable();
+      return visitedDeviceIds_;
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @return The count of visitedDeviceIds.
+     */
+    public int getVisitedDeviceIdsCount() {
+      return visitedDeviceIds_.size();
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @param index The index of the element to return.
+     * @return The visitedDeviceIds at the given index.
+     */
+    public java.lang.String getVisitedDeviceIds(int index) {
+      return visitedDeviceIds_.get(index);
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @param index The index of the value to return.
+     * @return The bytes of the visitedDeviceIds at the given index.
+     */
+    public com.google.protobuf.ByteString
+        getVisitedDeviceIdsBytes(int index) {
+      return visitedDeviceIds_.getByteString(index);
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @param index The index to set the value at.
+     * @param value The visitedDeviceIds to set.
+     * @return This builder for chaining.
+     */
+    public Builder setVisitedDeviceIds(
+        int index, java.lang.String value) {
+      java.util.Objects.requireNonNull(value);
+      ensureVisitedDeviceIdsIsMutable();
+      visitedDeviceIds_.set(index, value);
+      bitField0_ |= 0x00000100;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @param value The visitedDeviceIds to add.
+     * @return This builder for chaining.
+     */
+    public Builder addVisitedDeviceIds(
+        java.lang.String value) {
+      java.util.Objects.requireNonNull(value);
+      ensureVisitedDeviceIdsIsMutable();
+      visitedDeviceIds_.add(value);
+      bitField0_ |= 0x00000100;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @param values The visitedDeviceIds to add.
+     * @return This builder for chaining.
+     */
+    public Builder addAllVisitedDeviceIds(
+        java.lang.Iterable<java.lang.String> values) {
+      ensureVisitedDeviceIdsIsMutable();
+      com.google.protobuf.AbstractMessageLite.Builder.addAll(
+          values, visitedDeviceIds_);
+      bitField0_ |= 0x00000100;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearVisitedDeviceIds() {
+      visitedDeviceIds_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
+      bitField0_ = (bitField0_ & ~0x00000100);;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>repeated string visited_device_ids = 9;</code>
+     * @param value The bytes of the visitedDeviceIds to add.
+     * @return This builder for chaining.
+     */
+    public Builder addVisitedDeviceIdsBytes(
+        com.google.protobuf.ByteString value) {
+      java.util.Objects.requireNonNull(value);
+      checkByteStringIsUtf8(value);
+      ensureVisitedDeviceIdsIsMutable();
+      visitedDeviceIds_.add(value);
+      bitField0_ |= 0x00000100;
       onChanged();
       return this;
     }

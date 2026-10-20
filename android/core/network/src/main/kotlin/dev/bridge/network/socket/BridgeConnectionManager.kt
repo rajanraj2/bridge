@@ -40,6 +40,16 @@ object BridgeConnectionManager {
         override fun onEnvelopeReceived(envelope: Envelope) {
             println("BridgeApp: onEnvelopeReceived payloadCase=${envelope.payloadCase}")
             listeners.forEach { it.onEnvelopeReceived(envelope) }
+
+            // Mesh Relay: Forward clipboard updates to other peers in the mesh
+            if (envelope.hasClipboardUpdate()) {
+                val visited = envelope.visitedDeviceIdsList
+                val currentDevice = "android-phone"
+                if (!visited.contains(currentDevice)) {
+                    val relay = envelope.toBuilder().addVisitedDeviceIds(currentDevice).build()
+                    sendEnvelope(relay)
+                }
+            }
         }
 
         override fun onDisconnected(reason: String) {
