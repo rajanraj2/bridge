@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -187,7 +188,7 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-    val currentAppVersion = "0.1.12"
+    val currentAppVersion = "0.1.13"
     val coroutineScope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -195,9 +196,57 @@ fun BridgeDashboard(
     var shareInputText by remember { mutableStateOf("") }
     var activeTransferProgress by remember { mutableStateOf<TransferProgress?>(null) }
     var activeTransferId by remember { mutableStateOf<String?>(null) }
+    var showAdvancedDetails by remember { mutableStateOf(false) }
+
+    fun checkNotificationAccess(): Boolean {
+        return androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+
+    fun checkAccessibility(): Boolean {
+        return android.provider.Settings.Secure.getString(
+            context.contentResolver,
+            android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        )?.contains("BridgeAccessibilityService") == true
+    }
+
+    fun checkBatteryExemption(): Boolean {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        return pm?.isIgnoringBatteryOptimizations(context.packageName) == true
+    }
+
+    fun checkPostNotifications(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    var hasNotificationAccess by remember { mutableStateOf(checkNotificationAccess()) }
+    var hasAccessibility by remember { mutableStateOf(checkAccessibility()) }
+    var hasBatteryExemption by remember { mutableStateOf(checkBatteryExemption()) }
+    var hasPostNotifications by remember { mutableStateOf(checkPostNotifications()) }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasNotificationAccess = checkNotificationAccess()
+                hasAccessibility = checkAccessibility()
+                hasBatteryExemption = checkBatteryExemption()
+                hasPostNotifications = checkPostNotifications()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val localIps = remember { BridgeSocketServer.getLocalIpAddresses() }
-
     val socketListener = remember {
         object : SocketConnectionListener {
             override fun onConnected(remoteAddress: String) {
@@ -338,35 +387,117 @@ fun BridgeDashboard(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Device identity card with real IP
+        val allPermissionsReady = hasNotificationAccess && hasAccessibility && hasBatteryExemption && hasPostNotifications
+        var permissionsExpanded by remember { mutableStateOf(!allPermissionsReady) }
+
+        // Setup & Permissions Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "Local Device Identity & Network IP",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "ID: $localDeviceId",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp
-                )
-                Text(
-                    text = "Phone IP: " + if (localIps.isNotEmpty()) localIps.joinToString(", ") else "127.0.0.1",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Fingerprint: " + IdentityManager.fingerprint(localPublicKey),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { permissionsExpanded = !permissionsExpanded },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (allPermissionsReady) "🛡️ App Permissions (All Set)" else "⚠️ Permissions Setup Required",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (allPermissionsReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Text(
+                        text = if (permissionsExpanded) "▲ Hide" else "▼ Manage",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (permissionsExpanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Enable the features you want Bridge to provide. Denied features will gracefully stay offline without affecting other capabilities.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    PermissionSetupRow(
+                        title = "Notification Mirroring",
+                        description = "Mirror Android notifications to Mac and handle quick replies.",
+                        isGranted = hasNotificationAccess,
+                        actionLabel = "Enable Access",
+                        onAction = {
+                            val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    PermissionSetupRow(
+                        title = "Background Clipboard Sync",
+                        description = "Sync copied text across all apps to Mac without keeping Bridge in foreground.",
+                        isGranted = hasAccessibility,
+                        actionLabel = "Enable in Accessibility",
+                        onAction = {
+                            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    PermissionSetupRow(
+                        title = "Unrestricted Battery",
+                        description = "Prevent Android from putting Bridge to sleep in the background.",
+                        isGranted = hasBatteryExemption,
+                        actionLabel = "Exempt App",
+                        onAction = {
+                            try {
+                                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = android.net.Uri.parse("package:${context.packageName}")
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                val fallback = Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(fallback)
+                            }
+                        }
+                    )
+
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        PermissionSetupRow(
+                            title = "Foreground Notifications",
+                            description = "Show connection indicator and quick clipboard sync button in notification tray.",
+                            isGranted = hasPostNotifications,
+                            actionLabel = "Allow",
+                            onAction = {
+                                val intent = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -970,146 +1101,137 @@ fun BridgeDashboard(
                         }
                     }
 
-                    var isA11yEnabled by remember {
-                        mutableStateOf(
-                            android.provider.Settings.Secure.getString(
-                                context.contentResolver,
-                                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-                            )?.contains("BridgeAccessibilityService") == true
-                        )
-                    }
-
-                    if (!isA11yEnabled) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "⚡ Automatic Background Copy Sync",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "To automatically send copied text from Chrome, WhatsApp, or Notes to your Mac without tapping buttons, enable Bridge in Accessibility Settings.",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = {
-                                        val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Enable in Accessibility Settings")
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Permission Remediation Advisor Card
+        // Collapsible Advanced Technical Details & Diagnostics Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Permission & Reliability Advisor",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                PermissionAdvisor.getStandardAndroidChecks().forEach { check ->
-                    Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = check.name, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                text = check.state.name,
-                                color = if (check.state == PermissionState.GRANTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Text(
-                            text = check.description,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (check.state != PermissionState.GRANTED) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Fix: " + check.remediationGuidance,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    HorizontalDivider()
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Diagnostic Bundle Export Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Diagnostic Logs (Privacy-Preserving)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Exports structured connection transitions and metrics with 100% content redaction",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = {
-                        exportedBundleJson = diagnosticLogger.exportDiagnosticBundle()
-                    },
-                    modifier = Modifier.fillMaxWidth()
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAdvancedDetails = !showAdvancedDetails },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Generate Redacted Diagnostic Bundle")
-                }
-
-                exportedBundleJson?.let { json ->
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = json,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
+                        text = "⚙️ Advanced Technical Details & Logs",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (showAdvancedDetails) "▲ Hide" else "▼ Show",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
+
+                if (showAdvancedDetails) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Device & Network Identifiers",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Device ID: $localDeviceId",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = "Phone IP: " + if (localIps.isNotEmpty()) localIps.joinToString(", ") else "127.0.0.1",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Fingerprint: " + IdentityManager.fingerprint(localPublicKey),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Diagnostic Logs (Privacy-Preserving)",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Structured connection state transitions with zero sensitive payload logging.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            exportedBundleJson = diagnosticLogger.exportDiagnosticBundle()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Export Redacted Diagnostic Bundle")
+                    }
+
+                    exportedBundleJson?.let { json ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = json,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "System Compatibility & Reliability Checks",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PermissionAdvisor.getStandardAndroidChecks().forEach { check ->
+                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = check.name, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text(
+                                    text = check.state.name,
+                                    color = if (check.state == PermissionState.GRANTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = check.description,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        HorizontalDivider()
+                    }
+                }
             }
         }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // Application Updates Card
@@ -1183,6 +1305,41 @@ fun BridgeDashboard(
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+@Composable
+private fun PermissionSetupRow(
+    title: String,
+    description: String,
+    isGranted: Boolean,
+    actionLabel: String,
+    onAction: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (isGranted) {
+            Text(
+                "✓ Ready",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        } else {
+            Button(
+                onClick = onAction,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(actionLabel, fontSize = 11.sp)
+            }
         }
     }
 }

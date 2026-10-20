@@ -54,7 +54,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     @Published public var lastTransferLog: String? = nil
     @Published public var exportedDiagnosticBundle: String? = nil
-    public let appVersion = "0.1.12"
+    public let appVersion = "0.1.13"
     @Published public var availableUpdate: UpdateInfo? = nil
     @Published public var updateStatusText: String? = nil
     @Published public var isCheckingUpdates: Bool = false
@@ -451,22 +451,6 @@ struct BridgeMenuView: View {
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(6)
             }
-            if !model.localIps.isEmpty {
-                Text("Mac IP: \(model.localIps.first ?? "")")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.secondary)
-            }
-
-            if let route = model.activeRouteType {
-                HStack {
-                    Image(systemName: route == .localLAN ? "wifi" : "network")
-                        .foregroundColor(.blue)
-                    Text(route == .localLAN ? "Local Wi-Fi" : "Tailscale Remote")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-
             Divider()
 
             if let peer = model.connectedPeerName {
@@ -569,6 +553,28 @@ struct BridgeMenuView: View {
                 model.openPrivacySecuritySettings()
             }
 
+            #if os(macOS)
+            DisclosureGroup("Advanced Details") {
+                VStack(alignment: .leading, spacing: 4) {
+                    if !model.localIps.isEmpty {
+                        Text("Mac IP: \(model.localIps.joined(separator: ", "))")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    Text("Device ID: \(model.deviceId)")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    if let route = model.activeRouteType {
+                        Text("Route: \(route == .localLAN ? "Local Wi-Fi" : "Tailscale Remote")")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .font(.caption)
+            #endif
+
             Button("Preferences...") {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
@@ -591,14 +597,13 @@ struct BridgeSettingsView: View {
                     .font(.title2)
                     .bold()
                 Text("Device: \(model.deviceName)")
-                Text("Device ID: \(model.deviceId)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-                Text("Local IP: \(model.localIps.joined(separator: ", "))")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-                Text("Status: \(model.state.rawValue.capitalized)")
-
+                    .font(.headline)
+                HStack {
+                    Text("Status:")
+                    Text(model.state.rawValue.capitalized)
+                        .bold()
+                        .foregroundColor(model.state == .connected ? .green : .secondary)
+                }
                 Divider()
 
                 Text("Tailscale Remote Endpoint")
@@ -669,18 +674,30 @@ struct BridgeSettingsView: View {
 
                 Divider()
 
-                Text("Privacy & Diagnostics")
-                    .font(.headline)
-                Button("Export Redacted Diagnostic Bundle") {
-                    model.exportLogs()
+                #if os(macOS)
+                DisclosureGroup("Advanced Device Identity & Diagnostics") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Device ID: \(model.deviceId)")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                        Text("Local IP: \(model.localIps.joined(separator: ", "))")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+
+                        Button("Export Redacted Diagnostic Bundle") {
+                            model.exportLogs()
+                        }
+                        if let logs = model.exportedDiagnosticBundle {
+                            Text(logs)
+                                .font(.system(size: 9, design: .monospaced))
+                                .padding(8)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(4)
+                        }
+                    }
+                    .padding(.top, 4)
                 }
-                if let logs = model.exportedDiagnosticBundle {
-                    Text(logs)
-                        .font(.system(size: 9, design: .monospaced))
-                        .padding(8)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(4)
-                }
+                #endif
 
                 Divider()
 
