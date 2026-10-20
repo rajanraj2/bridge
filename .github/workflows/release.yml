@@ -72,7 +72,7 @@ jobs:
           path: |
             dist/Bridge-*-macOS.zip
             dist/Bridge*.dmg
-
+            dist/Bridge*.pkg
   publish-release:
     name: Publish GitHub Release
     needs: [build-android, build-macos]
@@ -104,5 +104,5 @@ jobs:
             dist/Bridge-*.apk
             dist/Bridge-*-macOS.zip
             dist/Bridge-*.dmg
-        env:
+            dist/Bridge-*.pkg
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
