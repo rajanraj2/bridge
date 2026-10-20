@@ -15,12 +15,12 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
-public nonisolated struct Bridge_Version: Sendable {
+public struct Bridge_Version: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -34,7 +34,7 @@ public nonisolated struct Bridge_Version: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_Hello: Sendable {
+public struct Bridge_Hello: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -55,7 +55,7 @@ public nonisolated struct Bridge_Hello: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_HelloAck: Sendable {
+public struct Bridge_HelloAck: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -82,9 +82,9 @@ public nonisolated struct Bridge_HelloAck: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate nonisolated let _protobuf_package = "bridge.v1"
+fileprivate let _protobuf_package = "bridge.v1"
 
-nonisolated extension Bridge_Version: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_Version: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Version"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}major\0\u{1}minor\0")
 
@@ -119,7 +119,7 @@ nonisolated extension Bridge_Version: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-nonisolated extension Bridge_Hello: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_Hello: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Hello"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}display_name\0\u{1}platform\0\u{3}supported_versions\0\u{1}capabilities\0")
 
@@ -169,7 +169,7 @@ nonisolated extension Bridge_Hello: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-nonisolated extension Bridge_HelloAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_HelloAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".HelloAck"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}selected_version\0\u{3}session_id\0\u{3}accepted_capabilities\0")
 

@@ -53,9 +53,9 @@ cat <<EOF > "${APP_DIR}/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.1.2</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.5</string>
     <key>LSUIElement</key>
@@ -72,16 +72,16 @@ echo "APPL????" > "${APP_DIR}/Contents/PkgInfo"
 
 # 3. Create macOS ZIP archive
 cd "${DIST_DIR}"
-echo "Creating Bridge-v0.1.0-macOS.zip..."
-rm -f "Bridge-v0.1.0-macOS.zip"
-zip -r -q "Bridge-v0.1.0-macOS.zip" "Bridge.app"
+echo "Creating Bridge-v0.1.2-macOS.zip..."
+rm -f "Bridge-v0.1.2-macOS.zip"
+zip -r -q "Bridge-v0.1.2-macOS.zip" "Bridge.app"
 
 # 4. If running on macOS with hdiutil, generate DMG
 if command -v hdiutil >/dev/null 2>&1; then
-    echo "Creating Bridge-v0.1.0.dmg via hdiutil..."
-    rm -f "${DIST_DIR}/Bridge-v0.1.0.dmg"
-    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "${DIST_DIR}/Bridge-v0.1.0.dmg"
-    echo "Created dist/Bridge-v0.1.0.dmg"
+    echo "Creating Bridge-v0.1.2.dmg via hdiutil..."
+    rm -f "${DIST_DIR}/Bridge-v0.1.2.dmg"
+    hdiutil create -volname "Bridge" -srcfolder "${APP_DIR}" -ov -format UDZO "${DIST_DIR}/Bridge-v0.1.2.dmg"
+    echo "Created dist/Bridge-v0.1.2.dmg"
 fi
 
 echo "Successfully packaged macOS application in ${DIST_DIR}:"

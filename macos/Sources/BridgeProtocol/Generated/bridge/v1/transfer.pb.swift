@@ -20,12 +20,12 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
-public nonisolated struct Bridge_ShareText: Sendable {
+public struct Bridge_ShareText: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -42,7 +42,7 @@ public nonisolated struct Bridge_ShareText: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_FileTransferRequest: Sendable {
+public struct Bridge_FileTransferRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -64,7 +64,7 @@ public nonisolated struct Bridge_FileTransferRequest: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_FileTransferAccept: Sendable {
+public struct Bridge_FileTransferAccept: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -82,7 +82,7 @@ public nonisolated struct Bridge_FileTransferAccept: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_FileChunk: Sendable {
+public struct Bridge_FileChunk: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -100,7 +100,7 @@ public nonisolated struct Bridge_FileChunk: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_FileTransferComplete: Sendable {
+public struct Bridge_FileTransferComplete: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -116,7 +116,7 @@ public nonisolated struct Bridge_FileTransferComplete: Sendable {
   public init() {}
 }
 
-public nonisolated struct Bridge_FileTransferCancel: Sendable {
+public struct Bridge_FileTransferCancel: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -132,9 +132,9 @@ public nonisolated struct Bridge_FileTransferCancel: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate nonisolated let _protobuf_package = "bridge.v1"
+fileprivate let _protobuf_package = "bridge.v1"
 
-nonisolated extension Bridge_ShareText: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_ShareText: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ShareText"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}share_id\0\u{3}content_type\0\u{1}content\0")
 
@@ -174,7 +174,7 @@ nonisolated extension Bridge_ShareText: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-nonisolated extension Bridge_FileTransferRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_FileTransferRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileTransferRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}transfer_id\0\u{3}file_name\0\u{3}total_size\0\u{3}media_type\0\u{1}sha256\0\u{3}preferred_chunk_size\0")
 
@@ -229,7 +229,7 @@ nonisolated extension Bridge_FileTransferRequest: SwiftProtobuf.Message, SwiftPr
   }
 }
 
-nonisolated extension Bridge_FileTransferAccept: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_FileTransferAccept: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileTransferAccept"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}transfer_id\0\u{1}accepted\0\u{3}chunk_size\0\u{3}rejection_reason\0")
 
@@ -274,7 +274,7 @@ nonisolated extension Bridge_FileTransferAccept: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-nonisolated extension Bridge_FileChunk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_FileChunk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileChunk"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}transfer_id\0\u{1}offset\0\u{1}data\0\u{3}is_last\0")
 
@@ -319,7 +319,7 @@ nonisolated extension Bridge_FileChunk: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-nonisolated extension Bridge_FileTransferComplete: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_FileTransferComplete: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileTransferComplete"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}transfer_id\0\u{1}verified\0\u{3}actual_sha256\0")
 
@@ -359,7 +359,7 @@ nonisolated extension Bridge_FileTransferComplete: SwiftProtobuf.Message, SwiftP
   }
 }
 
-nonisolated extension Bridge_FileTransferCancel: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_FileTransferCancel: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileTransferCancel"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}transfer_id\0\u{1}reason\0")
 
