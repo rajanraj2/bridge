@@ -18,8 +18,6 @@ class BridgeAccessibilityService : AccessibilityService() {
         isRunning = true
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_VIEW_CLICKED or
-                    AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED or
-                    AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             notificationTimeout = 100
@@ -31,26 +29,34 @@ class BridgeAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-        checkAndSyncClipboard()
+
+        // 1. Detect user clicking "Copy" or "Cut" in context menus / popups
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val text = event.text.joinToString(" ")
+            val desc = event.contentDescription?.toString() ?: ""
+            if (isCopyAction(text) || isCopyAction(desc)) {
+                println("BridgeAccessibilityService: detected user click on Copy action! text='$text', desc='$desc'")
+                BridgeForegroundService.triggerTrampolineFromService(this)
+                return
+            }
+        }
+
+        // 2. Detect SystemUI showing ClipboardOverlay
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val pkg = event.packageName?.toString() ?: ""
+            val cls = event.className?.toString() ?: ""
+            if (pkg == "com.android.systemui" && cls.contains("Clipboard", ignoreCase = true)) {
+                println("BridgeAccessibilityService: detected SystemUI ClipboardOverlay ($cls)!")
+                BridgeForegroundService.triggerTrampolineFromService(this)
+                return
+            }
+        }
     }
 
-    private fun checkAndSyncClipboard() {
-        try {
-            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-            if (cm.hasPrimaryClip()) {
-                val clip = cm.primaryClip
-                if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0)?.coerceToText(this)?.toString()
-                    if (!text.isNullOrBlank() && text != lastSyncedText && text != BridgeForegroundService.lastReceivedText && text != BridgeForegroundService.lastSentText) {
-                        lastSyncedText = text
-                        println("BridgeAccessibilityService: captured clipboard from external app: '$text'")
-                        BridgeForegroundService.dispatchLocalCopy(text)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            println("BridgeAccessibilityService check error: ${e.message}")
-        }
+    private fun isCopyAction(str: String): Boolean {
+        if (str.isBlank()) return false
+        val s = str.lowercase()
+        return s.contains("copy") || s.contains("cut") || s.contains("复制") || s.contains("剪切") || s.contains("copier")
     }
 
     override fun onInterrupt() {

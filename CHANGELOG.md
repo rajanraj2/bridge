@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.11] - 2026-10-21
+
+### Fixed
+- **Real-Time Background Clipboard Sync**:
+  - Unified `dispatchLocalCopy` to directly construct and stream protobuf `Envelope` via `BridgeConnectionManager` so copied text syncs to Mac in real time without opening the Bridge Android application.
+  - Removed recursion storms in logcat watcher by filtering strictly for package-targeted denial events with debounce throttling.
+  - Configured `ClipboardSyncActivity` with focusable non-modal attributes to reliably obtain window focus in 5ms across third-party apps.
+
+---
 ## [0.1.10] - 2026-10-20
 
 ### Fixed
