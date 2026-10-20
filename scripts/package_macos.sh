@@ -17,10 +17,15 @@ rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS"
 mkdir -p "${APP_DIR}/Contents/Resources"
 
-# 1. Compile release binary
+# 1. Compile release binary (Universal arm64 + x86_64 on macOS, host arch on Linux)
 cd "${REPO_ROOT}/macos"
 echo "Building release binary..."
-swift build -c release
+if swift build -c release --arch arm64 --arch x86_64 2>/dev/null; then
+    echo "Universal binary (arm64 + x86_64) compiled successfully!"
+else
+    echo "Compiling host architecture release binary..."
+    swift build -c release
+fi
 
 BIN_DIR="$(swift build -c release --show-bin-path)"
 if [ -f "${BIN_DIR}/BridgeApp" ]; then
@@ -61,7 +66,11 @@ cat <<EOF > "${APP_DIR}/Contents/Info.plist"
     <key>CFBundleVersion</key>
     <string>${VERSION}</string>
     <key>LSMinimumSystemVersion</key>
-    <string>14.5</string>
+    <string>13.0</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+        <string>MacOSX</string>
+    </array>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>
@@ -74,12 +83,13 @@ EOF
 
 echo "APPL????" > "${APP_DIR}/Contents/PkgInfo"
 
-# 3. Ensure world-readable permissions and ad-hoc sign the bundle
+# 3. Ensure world-readable permissions and ad-hoc sign the binary & bundle
 chmod -R u=rwX,go=rX "${APP_DIR}"
 if command -v codesign >/dev/null 2>&1; then
     echo "Ad-hoc codesigning Bridge.app..."
     xattr -cr "${APP_DIR}" 2>/dev/null || true
-    codesign --force --deep --strict --sign - "${APP_DIR}" || true
+    codesign --force --sign - "${APP_DIR}/Contents/MacOS/BridgeApp" || true
+    codesign --force --sign - "${APP_DIR}" || true
 fi
 
 # 4. Create macOS ZIP archive
