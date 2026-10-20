@@ -104,7 +104,6 @@ class BridgeForegroundService : Service() {
                         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         val clip = android.content.ClipData.newPlainText("Bridge", text)
                         cm?.setPrimaryClip(clip)
-                        android.widget.Toast.makeText(this, "📋 Copied from Mac to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
                         println("BridgeForegroundService: setPrimaryClip error: ${e.message}")
                     }

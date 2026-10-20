@@ -54,7 +54,10 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     @Published public var lastTransferLog: String? = nil
     @Published public var exportedDiagnosticBundle: String? = nil
-
+    public let appVersion: String = "0.1.5"
+    @Published public var availableUpdate: UpdateInfo? = nil
+    @Published public var updateStatusText: String? = nil
+    @Published public var isCheckingUpdates: Bool = false
     public let deviceId: String
     public let localPublicKey: Data
     public let peerStore: InMemoryTrustedPeerStore
@@ -132,8 +135,11 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
         startSocketServer()
         startPasteboardMonitoring()
-    }
 
+        Task { [weak self] in
+            await self?.checkForUpdates(userInitiated: false)
+        }
+    }
     private func startSocketServer() {
         do {
             let server = BridgeSocketServer(port: 54884)
@@ -354,6 +360,38 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
             lastTransferLog = "Share error: \(error.localizedDescription)"
         }
     }
+
+    @MainActor
+    public func checkForUpdates(userInitiated: Bool = false) async {
+        isCheckingUpdates = true
+        if userInitiated {
+            updateStatusText = "Checking for updates..."
+        }
+        let update = await UpdateManager.shared.checkForUpdates(currentVersion: appVersion)
+        isCheckingUpdates = false
+        availableUpdate = update
+        if let update = update {
+            updateStatusText = "Update available: \(update.tagName)"
+        } else if userInitiated {
+            updateStatusText = "You are on the latest version (v\(appVersion)) ✓"
+        }
+    }
+
+    public func openUpdateDownload() {
+        if let update = availableUpdate, let url = URL(string: update.dmgDownloadUrl ?? update.releaseUrl) {
+            #if os(macOS)
+            NSWorkspace.shared.open(url)
+            #endif
+        }
+    }
+
+    public func openPrivacySecuritySettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Security") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
+    }
 }
 
 struct BridgeMenuView: View {
@@ -371,6 +409,25 @@ struct BridgeMenuView: View {
                     .foregroundColor(model.state == .connected ? .green : .secondary)
             }
 
+            if let update = model.availableUpdate {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundColor(.blue)
+                        Text("Update Available: \(update.tagName)")
+                            .font(.caption)
+                            .bold()
+                    }
+                    Button("⬇️ Download & Install Update...") {
+                        model.openUpdateDownload()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                .padding(8)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(6)
+            }
             if !model.localIps.isEmpty {
                 Text("Mac IP: \(model.localIps.first ?? "")")
                     .font(.system(size: 10, design: .monospaced))
@@ -473,6 +530,22 @@ struct BridgeMenuView: View {
                 .font(.caption)
 
             Divider()
+
+            Button("Check for Updates...") {
+                Task {
+                    await model.checkForUpdates(userInitiated: true)
+                }
+            }
+            if let status = model.updateStatusText {
+                Text(status)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Button("Open Privacy & Security Settings...") {
+                model.openPrivacySecuritySettings()
+            }
+
             Button("Preferences...") {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
@@ -586,6 +659,35 @@ struct BridgeSettingsView: View {
                         .cornerRadius(4)
                 }
 
+                Divider()
+
+                Text("Application Updates")
+                    .font(.headline)
+                Text("Current version: v\(model.appVersion)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Button("Check for Updates...") {
+                    Task {
+                        await model.checkForUpdates(userInitiated: true)
+                    }
+                }
+                if let status = model.updateStatusText {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                if let update = model.availableUpdate {
+                    Button("⬇️ Download & Install \(update.tagName)") {
+                        model.openUpdateDownload()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+
+                Divider()
+
+                Button("Open Privacy & Security Settings...") {
+                    model.openPrivacySecuritySettings()
+                }
                 Spacer()
             }
             .padding(24)

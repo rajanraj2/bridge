@@ -35,7 +35,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -184,7 +186,11 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-
+    val currentAppVersion = "0.1.5"
+    val coroutineScope = rememberCoroutineScope()
+    var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateCheckStatus by remember { mutableStateOf<String?>(null) }
     var shareInputText by remember { mutableStateOf("") }
     var activeTransferProgress by remember { mutableStateOf<TransferProgress?>(null) }
     var activeTransferId by remember { mutableStateOf<String?>(null) }
@@ -212,7 +218,6 @@ fun BridgeDashboard(
                             clipboardManager.setPrimaryClip(clip)
                             lastReceivedClipboardText = text
                             lastActionLog = "Received from Mac: ${text.take(30)}..."
-                            android.widget.Toast.makeText(context, "📋 Synced from Mac!", android.widget.Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
                             println("MainActivity: setPrimaryClip error: ${e.message}")
                         }
@@ -265,6 +270,14 @@ fun BridgeDashboard(
                         .setProtocolMinor(0)
                         .build()
                     BridgeConnectionManager.sendEnvelope(hello)
+                }
+            }
+        }
+        coroutineScope.launch {
+            UpdateManager.checkForUpdate(currentAppVersion).onSuccess { update ->
+                availableUpdate = update
+                if (update != null) {
+                    updateCheckStatus = "Update available: ${update.tagName}"
                 }
             }
         }
@@ -354,8 +367,41 @@ fun BridgeDashboard(
                 )
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
+
+        val updateBanner = availableUpdate
+        if (updateBanner != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "🚀 New Version Available: ${updateBanner.tagName}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "A newer version of Bridge is available to install (current: v$currentAppVersion).",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = {
+                            UpdateManager.openDownload(context, updateBanner.apkDownloadUrl ?: updateBanner.releaseUrl)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("⬇️ Download & Update to ${updateBanner.tagName}")
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Connection status card with Active Route
         Card(
@@ -912,7 +958,6 @@ fun BridgeDashboard(
                                     onClick = {
                                         val clip = ClipData.newPlainText("Bridge", receivedText)
                                         clipboardManager.setPrimaryClip(clip)
-                                        android.widget.Toast.makeText(context, "📋 Copied to phone clipboard!", android.widget.Toast.LENGTH_SHORT).show()
                                         lastActionLog = "Copied to phone: ${receivedText.take(30)}..."
                                     },
                                     modifier = Modifier.fillMaxWidth()
@@ -1015,6 +1060,72 @@ fun BridgeDashboard(
                             .fillMaxWidth()
                             .padding(8.dp)
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Application Updates Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Application Updates",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Current installed version: v$currentAppVersion",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = {
+                        isCheckingUpdate = true
+                        updateCheckStatus = "Checking GitHub for updates..."
+                        coroutineScope.launch {
+                            UpdateManager.checkForUpdate(currentAppVersion).onSuccess { update ->
+                                isCheckingUpdate = false
+                                availableUpdate = update
+                                updateCheckStatus = if (update != null) "New version ${update.tagName} is available!" else "You are on the latest version (v$currentAppVersion) ✓"
+                            }.onFailure { err ->
+                                isCheckingUpdate = false
+                                updateCheckStatus = "Check failed: ${err.message}"
+                            }
+                        }
+                    },
+                    enabled = !isCheckingUpdate,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (isCheckingUpdate) "Checking GitHub..." else "🔄 Check for Updates")
+                }
+
+                if (updateCheckStatus != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = updateCheckStatus!!,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                val currentAvailable = availableUpdate
+                if (currentAvailable != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            UpdateManager.openDownload(context, currentAvailable.apkDownloadUrl ?: currentAvailable.releaseUrl)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("⬇️ Download & Install ${currentAvailable.tagName}")
+                    }
                 }
             }
         }
