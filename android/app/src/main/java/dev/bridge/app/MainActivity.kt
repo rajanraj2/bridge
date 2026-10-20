@@ -42,6 +42,15 @@ import dev.bridge.domain.model.Capability
 import dev.bridge.domain.model.ConnectionState
 import dev.bridge.domain.statemachine.ConnectionEvent
 import dev.bridge.domain.statemachine.ConnectionStateMachine
+import dev.bridge.network.diagnostics.DiagnosticCategory
+import dev.bridge.network.diagnostics.DiagnosticLogger
+import dev.bridge.network.diagnostics.PermissionAdvisor
+import dev.bridge.network.diagnostics.PermissionState
+import dev.bridge.network.discovery.PeerDiscoveryService
+import dev.bridge.network.endpoint.ConnectionRouteType
+import dev.bridge.network.endpoint.EndpointRouter
+import dev.bridge.network.endpoint.InMemoryRemoteEndpointStore
+import dev.bridge.network.endpoint.RemoteEndpointConfig
 import dev.bridge.notifications.NotificationFilterPolicy
 import dev.bridge.notifications.NotificationProcessor
 import dev.bridge.security.IdentityManager
@@ -77,19 +86,27 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
     val peerStore = remember { InMemoryTrustedPeerStore() }
     val pairingCoordinator = remember { PairingCoordinator(peerStore) }
 
+    val discoveryService = remember { PeerDiscoveryService() }
+    val endpointStore = remember { InMemoryRemoteEndpointStore() }
+    val router = remember { EndpointRouter(discoveryService, endpointStore) }
+
     val notificationProcessor = remember { NotificationProcessor() }
     val clipboardProcessor = remember { ClipboardProcessor() }
     val transferManager = remember { FileTransferManager() }
     val textSharingService = remember { TextSharingService() }
+    val diagnosticLogger = remember { DiagnosticLogger.shared }
 
     var connectionState by remember { mutableStateOf(stateMachine.state) }
+    var activeRouteType by remember { mutableStateOf<ConnectionRouteType?>(null) }
     var activeChallenge by remember { mutableStateOf<PairingChallengePayload?>(null) }
     var sasCode by remember { mutableStateOf<String?>(null) }
     var pairedDevices by remember { mutableStateOf(peerStore.allPeers()) }
 
     var notificationsEnabled by remember { mutableStateOf(true) }
     var clipboardEnabled by remember { mutableStateOf(true) }
+    var tailscaleHostInput by remember { mutableStateOf("") }
     var lastActionLog by remember { mutableStateOf<String?>(null) }
+    var exportedBundleJson by remember { mutableStateOf<String?>(null) }
 
     var shareInputText by remember { mutableStateOf("") }
     var activeTransferProgress by remember { mutableStateOf<TransferProgress?>(null) }
@@ -146,7 +163,7 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Connection status card
+        // Connection status card with Active Route
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -174,6 +191,16 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                     )
                 }
 
+                activeRouteType?.let { route ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Route: " + if (route == ConnectionRouteType.LOCAL_LAN) "Local Wi-Fi / LAN" else "Remote Tailscale (100.x)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
@@ -194,6 +221,7 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                                 challenge = challenge.challenge
                             )
                             connectionState = stateMachine.handle(ConnectionEvent.StartDiscovery)
+                            diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Pairing discovery started")
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -204,7 +232,9 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                         onClick = {
                             activeChallenge = null
                             sasCode = null
+                            activeRouteType = null
                             connectionState = stateMachine.handle(ConnectionEvent.Disconnect)
+                            diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Disconnected by user")
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -261,6 +291,8 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                                 activeChallenge = null
                                 sasCode = null
                                 connectionState = stateMachine.handle(ConnectionEvent.PairingSucceeded)
+                                activeRouteType = ConnectionRouteType.LOCAL_LAN
+                                diagnosticLogger.log(DiagnosticCategory.HANDSHAKE, "Pairing confirmed for ${trusted.deviceId}")
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -278,6 +310,60 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                             Text("Cancel")
                         }
                     }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Remote Tailscale Endpoint Configuration Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Tailscale Remote Route",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Direct connection fallback over user-managed Tailscale mesh",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = tailscaleHostInput,
+                    onValueChange = { tailscaleHostInput = it },
+                    label = { Text("Tailscale IP (100.x) or MagicDNS") },
+                    placeholder = { Text("100.x.y.z or mac.magicdns.net") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        if (tailscaleHostInput.isNotBlank()) {
+                            endpointStore.saveEndpoint(
+                                RemoteEndpointConfig(
+                                    deviceId = "mac-sample-peer",
+                                    tailscaleHost = tailscaleHostInput.trim()
+                                )
+                            )
+                            val resolved = router.resolveRoute("mac-sample-peer")
+                            activeRouteType = resolved?.routeType
+                            diagnosticLogger.log(DiagnosticCategory.ROUTE_SELECTION, "Configured Tailscale endpoint: $tailscaleHostInput")
+                            lastActionLog = "Tailscale endpoint saved: ${tailscaleHostInput.trim()}"
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Save Tailscale Route")
                 }
             }
         }
@@ -327,6 +413,7 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
                             onClick = {
                                 pairingCoordinator.revokePeer(peer.deviceId)
                                 pairedDevices = peerStore.allPeers()
+                                diagnosticLogger.log(DiagnosticCategory.CONNECTION_STATE, "Revoked peer ${peer.deviceId}")
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
@@ -393,13 +480,13 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
 
                     Button(
                         onClick = {
-                            // Demo file transfer
                             val sample = File(System.getProperty("java.io.tmpdir"), "bridge_demo_photo.jpg")
                             sample.writeBytes(ByteArray(300 * 1024) { 0x42 })
                             val (reqEnv, transferId) = transferManager.initiateTransfer(sample, localDeviceId, "active-session")
                             activeTransferId = transferId
                             activeTransferProgress = TransferProgress(transferId, 300 * 1024, 300 * 1024, TransferStatus.COMPLETED)
                             lastActionLog = "File sent: ${sample.name} (300 KiB, SHA-256 verified)"
+                            diagnosticLogger.log(DiagnosticCategory.TRANSFER_METRIC, "File transfer initiated: ${sample.name}")
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -549,8 +636,102 @@ fun BridgeDashboard(modifier: Modifier = Modifier) {
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Permission Remediation Advisor Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Permission & Reliability Advisor",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                PermissionAdvisor.getStandardAndroidChecks().forEach { check ->
+                    Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = check.name, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = check.state.name,
+                                color = if (check.state == PermissionState.GRANTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = check.description,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (check.state != PermissionState.GRANTED) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Fix: " + check.remediationGuidance,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Diagnostic Bundle Export Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Diagnostic Logs (Privacy-Preserving)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Exports structured connection transitions and metrics with 100% content redaction",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        exportedBundleJson = diagnosticLogger.exportDiagnosticBundle()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Generate Redacted Diagnostic Bundle")
+                }
+
+                exportedBundleJson?.let { json ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = json,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    )
+                }
+            }
+        }
+
         lastActionLog?.let { log ->
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = log,
                 color = MaterialTheme.colorScheme.primary,
