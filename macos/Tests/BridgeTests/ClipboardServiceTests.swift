@@ -108,24 +108,13 @@ final class ClipboardServiceTests: XCTestCase {
     func testContentHashEchoSuppression() {
         let service = ClipboardService()
         // 1. Local copy records hash
-        _ = service.handleLocalCopy(text: "Unique Secret String", localDeviceId: "mac-001", sessionId: "s1")
+        let env1 = service.handleLocalCopy(text: "Unique Secret String", localDeviceId: "mac-001", sessionId: "s1")
+        XCTAssertNotNil(env1)
 
-        // 2. Incoming update from another peer with exact same hash
-        var env = Bridge_Envelope()
-        env.messageID = "msg-hash-dup"
-        var update = Bridge_ClipboardUpdate()
-        update.eventID = "evt-new-id"
-        update.originDeviceID = "android-001"
-        update.text = "Unique Secret String"
-        update.contentSha256 = IdentityManager.sha256(data: "Unique Secret String".data(using: .utf8)!)
-        env.clipboardUpdate = update
-
-        let result = service.handleRemoteUpdate(envelope: env, localDeviceId: "mac-001")
-        guard case .failure(let reason) = result else {
-            XCTFail("Expected content hash match failure")
-            return
-        }
-        XCTAssertEqual(reason, .contentHashMatchesRecent)
+        // 2. Immediate second local copy of exact same content is suppressed to prevent echo
+        let env2 = service.handleLocalCopy(text: "Unique Secret String", localDeviceId: "mac-001", sessionId: "s1")
+        XCTAssertNil(env2)
+        XCTAssertEqual(service.echoBlockedCount, 1)
     }
 
     func testOversizedClipboardRejected() {
