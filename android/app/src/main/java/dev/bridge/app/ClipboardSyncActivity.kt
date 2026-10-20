@@ -9,8 +9,12 @@ class ClipboardSyncActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         overridePendingTransition(0, 0)
+        val wlp = window.attributes
+        wlp.flags = wlp.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        wlp.width = 1
+        wlp.height = 1
+        window.attributes = wlp
     }
-
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {

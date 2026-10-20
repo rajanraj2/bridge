@@ -117,8 +117,8 @@ class BridgeForegroundService : Service() {
         val prefs = getSharedPreferences("bridge_identity", Context.MODE_PRIVATE)
         localDeviceId = prefs.getString("device_id", "android-phone") ?: "android-phone"
         setupClipboardListener()
+        startLogcatWatcher()
     }
-
     private fun setupClipboardListener() {
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
@@ -149,7 +149,39 @@ class BridgeForegroundService : Service() {
         }
         cm.addPrimaryClipChangedListener(clipboardListener)
     }
+    private var isLogcatRunning = false
 
+    private fun startLogcatWatcher() {
+        if (isLogcatRunning) return
+        isLogcatRunning = true
+
+        Thread {
+            try {
+                val timeStamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+                val process = Runtime.getRuntime().exec(arrayOf("logcat", "-T", timeStamp, "ClipboardService:E", "ClipboardOverlay:V", "*:S"))
+                val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val l = line ?: continue
+                    if (l.contains("ClipboardService") || l.contains("ClipboardOverlay")) {
+                        println("BridgeForegroundService: logcat detected copy event: $l")
+                        val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        startActivity(intent)
+                    }
+                }
+            } catch (e: Exception) {
+                println("BridgeForegroundService: logcat watcher stopped: ${e.message}")
+            } finally {
+                isLogcatRunning = false
+            }
+        }.apply {
+            isDaemon = true
+            name = "Bridge-LogcatClipboardWatcher"
+            start()
+        }
+    }
     override fun onDestroy() {
         super.onDestroy()
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -160,6 +192,7 @@ class BridgeForegroundService : Service() {
             ACTION_START -> {
                 isServiceRunning = true
                 currentPeerName = intent.getStringExtra(EXTRA_PEER_NAME) ?: "Mac"
+                startLogcatWatcher()
                 val notification = buildForegroundNotification(currentPeerName)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
