@@ -154,8 +154,9 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
             if current != self.lastPasteboardChangeCount {
                 self.lastPasteboardChangeCount = current
                 if let string = NSPasteboard.general.string(forType: .string), !string.isEmpty {
-                    if let env = self.clipboardService.handleLocalCopy(text: string, localDeviceId: self.deviceId, sessionId: "live-session") {
+                    if let env = self.clipboardService.handleLocalCopy(text: string, localDeviceId: self.deviceId, sessionId: "live-session", forceSend: true) {
                         self.sendEnvelope(env)
+                        self.lastTransferLog = "Sent to phone: \(string.prefix(25))..."
                     }
                 }
             }
@@ -175,9 +176,10 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
     }
 
     public func sendEnvelope(_ envelope: Bridge_Envelope) {
-        let sent = socketServer?.send(envelope: envelope) ?? false
-        if !sent {
-            _ = socketClient?.send(envelope: envelope)
+        let sentServer = socketServer?.send(envelope: envelope) ?? false
+        let sentClient = socketClient?.send(envelope: envelope) ?? false
+        if !sentServer && !sentClient {
+            diagnosticLogger.log(category: .error, message: "sendEnvelope: No active socket connection to peer")
         }
     }
 

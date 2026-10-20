@@ -42,8 +42,11 @@ jobs:
       - name: Stage Android Artifact
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Bridge-v0.1.2.apk
-
+          VER="${GITHUB_REF_NAME#v}"
+          if [ -z "${VER}" ] || [ "${VER}" = "${GITHUB_REF_NAME}" ]; then
+            VER="$(cat VERSION 2>/dev/null | tr -d '[:space:]' || echo "0.1.3")"
+          fi
+          cp android/app/build/outputs/apk/debug/app-debug.apk "dist/Bridge-v${VER}.apk"
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -94,8 +97,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || 'v0.1.2' }}
-          name: "Bridge ${{ github.ref_name || 'v0.1.2' }}"
+          tag_name: ${{ github.ref_name }}
+          name: "Bridge ${{ github.ref_name }}"
           body_path: CHANGELOG.md
           files: |
             dist/Bridge-*.apk

@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.3] - 2026-10-20
+
+### Fixed
+- **Bidirectional Clipboard Synchronization**:
+  - Resolved Android 10+ background clipboard restrictions by adding a dedicated notification action button (`📋 Copy to Clipboard`) in the persistent foreground service notification shade.
+  - Added prominent **"📥 Received from Mac"** card with one-tap copy button in the Android dashboard UI.
+  - Dispatched clipboard operations to Android's Main Looper thread to prevent background thread silently dropping primary clip updates.
+  - Enabled `forceSend: true` in macOS pasteboard monitoring so copied content is always pushed to connected peers.
+  - Added automatic connection resumption on Android app launch to keep continuity active without manual pairing triggers.
+- **Asset and Release Version Matching**:
+  - Converted packaging scripts (`package_android.sh`, `package_macos.sh`, and `release.yml`) from hardcoded version numbers to dynamic tag-matching names (`Bridge-v0.1.3.apk`, `Bridge-v0.1.3.dmg`, `Bridge-v0.1.3-macOS.zip`).
+
+---
 ## [0.1.2] - 2026-10-20
 
 ### Fixed

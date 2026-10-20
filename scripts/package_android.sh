@@ -17,7 +17,12 @@ if [ ! -f "${APK_SRC}" ]; then
     echo "Error: APK not found at ${APK_SRC}"
     exit 1
 fi
+VERSION="${1:-$(cat "${REPO_ROOT}/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "0.1.3")}"
+if [ -n "${GITHUB_REF_NAME:-}" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
+    VERSION="${GITHUB_REF_NAME#v}"
+fi
 
-cp "${APK_SRC}" "${DIST_DIR}/Bridge-v0.1.2.apk"
-echo "Successfully created ${DIST_DIR}/Bridge-v0.1.2.apk:"
-ls -lh "${DIST_DIR}/Bridge-v0.1.2.apk"
+APK_DEST="${DIST_DIR}/Bridge-v${VERSION}.apk"
+cp "${APK_SRC}" "${APK_DEST}"
+echo "Successfully created ${APK_DEST}:"
+ls -lh "${APK_DEST}"
