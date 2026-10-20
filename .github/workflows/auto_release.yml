@@ -22,13 +22,13 @@ permissions:
   pull-requests: read
 
 jobs:
-  check-and-bump:
+  check-and-tag:
     name: Evaluate Release Label & Tag Release
     runs-on: ubuntu-latest
     if: (github.event_name == 'workflow_dispatch') || (github.event.pull_request.merged == true)
 
     steps:
-      - name: Check out main branch
+      - name: Check out main branch with all tags
         uses: actions/checkout@v4
         with:
           ref: main
@@ -53,32 +53,69 @@ jobs:
             fi
           fi
 
-          if [ -z "${BUMP}" ]; then
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "No release label detected on merged PR. Skipping automated release."
-          else
+          FILE_VER="$(cat VERSION 2>/dev/null | tr -d '[:space:]' || echo "")"
+          if [ -n "${FILE_VER}" ] && ! git rev-parse "v${FILE_VER}" >/dev/null 2>&1; then
             echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "use_file_version=true" >> $GITHUB_OUTPUT
+            echo "version=${FILE_VER}" >> $GITHUB_OUTPUT
+            echo "Detected new untagged version ${FILE_VER} in VERSION file."
+          elif [ -n "${BUMP}" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "use_file_version=false" >> $GITHUB_OUTPUT
             echo "bump_type=${BUMP}" >> $GITHUB_OUTPUT
             echo "Detected release label! Will execute '${BUMP}' version bump."
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "No release label or new version file detected. Skipping automated release."
           fi
 
-      - name: Execute Version Bump & Tag
+      - name: Compute Next Tag
+        if: steps.determine_bump.outputs.should_release == 'true'
+        id: compute_tag
+        run: |
+          if [ "${{ steps.determine_bump.outputs.use_file_version }}" = "true" ]; then
+            NEXT_VER="${{ steps.determine_bump.outputs.version }}"
+          else
+            BUMP_TYPE="${{ steps.determine_bump.outputs.bump_type }}"
+            LATEST_TAG="$(git tag -l "v*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || echo "")"
+            if [ -z "${LATEST_TAG}" ]; then
+              BASE_VER="0.1.2"
+            else
+              BASE_VER="${LATEST_TAG#v}"
+            fi
+            echo "Base version from tags: ${BASE_VER}"
+
+            IFS='.' read -r MAJOR MINOR PATCH <<< "${BASE_VER}"
+            case "${BUMP_TYPE}" in
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+            esac
+            NEXT_VER="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          TAG="v${NEXT_VER}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "next_version=${NEXT_VER}" >> $GITHUB_OUTPUT
+          echo "Computed new release tag: ${TAG}"
+
+      - name: Create & Push Release Tag
         if: steps.determine_bump.outputs.should_release == 'true'
         run: |
-          BUMP_TYPE="${{ steps.determine_bump.outputs.bump_type }}"
-          chmod +x scripts/bump_version.sh
-          ./scripts/bump_version.sh "${BUMP_TYPE}"
-
-          NEW_VERSION="$(cat VERSION | tr -d '[:space:]')"
-          TAG="v${NEW_VERSION}"
-          echo "New release tag: ${TAG}"
-
+          TAG="${{ steps.compute_tag.outputs.tag }}"
+          echo "Tagging HEAD of main with ${TAG}..."
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add VERSION android/app/build.gradle.kts scripts/package_macos.sh scripts/package_android.sh CHANGELOG.md
-          git commit -m "chore(release): bump version to ${NEW_VERSION} [skip ci]" || true
           git tag -a "${TAG}" -m "Bridge ${TAG} - Automated Release"
-
-          git push origin main
           git push origin "${TAG}"
+          echo "Successfully pushed tag ${TAG} to origin. release.yml will now build and publish assets!"
