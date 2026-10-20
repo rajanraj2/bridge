@@ -92,6 +92,14 @@ print('Fixtures valid!')
 "
 ```
 
+## Documentation & Guides
+- [Installation & Setup](docs/INSTALL.md)
+- [Troubleshooting & Privacy Guide](docs/TROUBLESHOOTING.md)
+- [Signing & Distribution Guide](docs/SIGNING_AND_DISTRIBUTION.md)
+- [Architecture Decision Records](docs/adr/)
+- [Changelog & Releases](CHANGELOG.md)
+
+
 ---
 
 ## Contributing
