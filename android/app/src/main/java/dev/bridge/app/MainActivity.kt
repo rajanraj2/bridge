@@ -186,7 +186,7 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-    val currentAppVersion = "0.1.5"
+    val currentAppVersion = "0.1.6"
     val coroutineScope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
