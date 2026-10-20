@@ -70,6 +70,12 @@ EOF
 
 echo "APPL????" > "${APP_DIR}/Contents/PkgInfo"
 
+# 3. Ad-hoc sign the bundle to prevent Gatekeeper damaged flags
+if command -v codesign >/dev/null 2>&1; then
+    echo "Ad-hoc codesigning Bridge.app..."
+    codesign --force --deep --sign - "${APP_DIR}" || true
+fi
+
 # 3. Create macOS ZIP archive
 cd "${DIST_DIR}"
 echo "Creating Bridge-v0.1.2-macOS.zip..."
