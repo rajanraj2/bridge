@@ -1,0 +1,31 @@
+{
+  "messageId": "msg-005",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-android-67890",
+  "sequenceNumber": 2,
+  "createdAtUnixMs": 1729440030000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "notificationEvent": {
+    "eventId": "notif-evt-200",
+    "originDeviceId": "dev-android-67890",
+    "sourcePackageOrBundleId": "com.google.android.apps.messaging",
+    "title": "Alice",
+    "body": "Are we still on for coffee?",
+    "category": "msg",
+    "postedAtUnixMs": 1729440029500,
+    "isSensitive": false,
+    "actions": [
+      {
+        "actionId": "reply",
+        "label": "Reply",
+        "requiresTextInput": true
+      },
+      {
+        "actionId": "mark_read",
+        "label": "Mark as read",
+        "requiresTextInput": false
+      }
+    ]
+  }
+}

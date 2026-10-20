@@ -17,3 +17,16 @@ dist/
 out/
 *.log
 *.tmp
+
+# Android & Gradle
+.gradle/
+local.properties
+*.apk
+*.aab
+
+# Swift & macOS
+.build/
+Packages/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/

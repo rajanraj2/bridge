@@ -1,0 +1,21 @@
+{
+  "messageId": "msg-002",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-android-67890",
+  "sequenceNumber": 1,
+  "createdAtUnixMs": 1729440001000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "helloAck": {
+    "selectedVersion": {
+      "major": 1,
+      "minor": 0
+    },
+    "sessionId": "sess-alpha-001",
+    "acceptedCapabilities": [
+      "clipboard",
+      "notifications",
+      "transfers"
+    ]
+  }
+}

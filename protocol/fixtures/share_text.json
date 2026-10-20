@@ -1,0 +1,14 @@
+{
+  "messageId": "msg-006",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-mac-12345",
+  "sequenceNumber": 4,
+  "createdAtUnixMs": 1729440040000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "shareText": {
+    "shareId": "share-url-301",
+    "contentType": "text/uri-list",
+    "content": "https://github.com/rajanraj2/bridge"
+  }
+}

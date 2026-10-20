@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package bridge.v1;
+
+option java_package = "dev.bridge.protocol.v1";
+option java_multiple_files = true;
+option swift_prefix = "Bridge_";
+
+message ShareText {
+  string share_id = 1;
+  string content_type = 2; // "text/plain" or "text/uri-list"
+  string content = 3;
+}
+
+message FileTransferRequest {
+  string transfer_id = 1;
+  string file_name = 2;
+  uint64 total_size = 3;
+  string media_type = 4;
+  bytes sha256 = 5;
+  uint32 preferred_chunk_size = 6;
+}
+
+message FileTransferAccept {
+  string transfer_id = 1;
+  bool accepted = 2;
+  uint32 chunk_size = 3;
+  string rejection_reason = 4;
+}
+
+message FileChunk {
+  string transfer_id = 1;
+  uint64 offset = 2;
+  bytes data = 3;
+  bool is_last = 4;
+}
+
+message FileTransferComplete {
+  string transfer_id = 1;
+  bool verified = 2;
+  bytes actual_sha256 = 3;
+}
+
+message FileTransferCancel {
+  string transfer_id = 1;
+  string reason = 2;
+}

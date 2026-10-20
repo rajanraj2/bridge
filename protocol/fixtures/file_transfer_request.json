@@ -1,0 +1,17 @@
+{
+  "messageId": "msg-007",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-mac-12345",
+  "sequenceNumber": 5,
+  "createdAtUnixMs": 1729440050000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "fileRequest": {
+    "transferId": "xfer-7001",
+    "fileName": "photo_vacation.jpg",
+    "totalSize": 2048000,
+    "mediaType": "image/jpeg",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "preferredChunkSize": 262144
+  }
+}

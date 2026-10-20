@@ -1,0 +1,25 @@
+{
+  "messageId": "msg-001",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-mac-12345",
+  "sequenceNumber": 1,
+  "createdAtUnixMs": 1729440000000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "hello": {
+    "deviceId": "dev-mac-12345",
+    "displayName": "MacBook Pro",
+    "platform": "macos",
+    "supportedVersions": [
+      {
+        "major": 1,
+        "minor": 0
+      }
+    ],
+    "capabilities": [
+      "clipboard",
+      "notifications",
+      "transfers"
+    ]
+  }
+}

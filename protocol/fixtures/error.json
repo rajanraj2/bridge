@@ -1,0 +1,15 @@
+{
+  "messageId": "msg-008",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-android-67890",
+  "sequenceNumber": 3,
+  "createdAtUnixMs": 1729440060000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "error": {
+    "code": "TRANSFER_REJECTED",
+    "safeMessage": "User declined incoming transfer",
+    "correlationId": "xfer-7001",
+    "retryable": false
+  }
+}

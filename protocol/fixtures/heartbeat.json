@@ -1,0 +1,12 @@
+{
+  "messageId": "msg-003",
+  "sessionId": "sess-alpha-001",
+  "senderDeviceId": "dev-mac-12345",
+  "sequenceNumber": 2,
+  "createdAtUnixMs": 1729440010000,
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "heartbeat": {
+    "sentAtUnixMs": 1729440010000
+  }
+}
