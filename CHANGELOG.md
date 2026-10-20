@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.8] - 2026-10-20
+
+### Added
+- **Homebrew Cask Support**:
+  - Added `Casks/bridge.rb` enabling one-command installation on any Mac: `brew install --cask rajanraj2/tap/bridge`.
+  - Included automated `postflight` unquarantine hook so Homebrew installations run immediately with zero Gatekeeper warnings.
+- **Universal One-Line Terminal Installer**:
+  - Added `scripts/install_mac.sh` executable via `curl -fsSL https://raw.githubusercontent.com/rajanraj2/bridge/main/scripts/install_mac.sh | bash`.
+
+### Fixed
+- **macOS Gatekeeper Compatibility**:
+  - Lowered `LSMinimumSystemVersion` from `14.5` to `13.0` (macOS Ventura and Sonoma) to prevent LaunchServices from flagging the binary as "damaged" on older macOS versions.
+  - Added Universal 2 binary build support (`arm64` + `x86_64`) ensuring native execution across both Apple Silicon and Intel Macs.
+
+---
 ## [0.1.7] - 2026-10-20
 
 ### Added
