@@ -186,7 +186,7 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-    val currentAppVersion = "0.1.6"
+    val currentAppVersion = "0.1.7"
     val coroutineScope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -282,8 +282,10 @@ fun BridgeDashboard(
             }
         }
     }
-    // Hook up background notification action sync
+    // Hook up background notification & auto-sync
+    BridgeForegroundService.localDeviceId = localDeviceId
     BridgeForegroundService.onClipboardSyncRequested = { text ->
+        BridgeForegroundService.lastSentText = text
         val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session", forceSend = true)
         if (env != null) {
             BridgeConnectionManager.sendEnvelope(env) { sent ->
@@ -291,7 +293,6 @@ fun BridgeDashboard(
             }
         }
     }
-
     // Clipboard listener hook for foreground changes
     DisposableEffect(clipboardEnabled) {
         val listener = ClipboardManager.OnPrimaryClipChangedListener {

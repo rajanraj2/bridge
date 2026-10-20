@@ -11,7 +11,12 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-
+import com.google.protobuf.ByteString
+import dev.bridge.network.socket.BridgeConnectionManager
+import dev.bridge.protocol.v1.ClipboardUpdate
+import dev.bridge.protocol.v1.Envelope
+import dev.bridge.security.IdentityManager
+import java.util.UUID
 class BridgeForegroundService : Service() {
 
     companion object {
@@ -28,7 +33,48 @@ class BridgeForegroundService : Service() {
         var onClipboardSyncRequested: ((String) -> Unit)? = null
         var isServiceRunning: Boolean = false
         var lastReceivedText: String? = null
+        var localDeviceId: String = "android-device"
+        var lastSentText: String? = null
 
+        fun dispatchLocalCopy(text: String) {
+            if (text.isBlank() || text == lastReceivedText || text == lastSentText) {
+                return
+            }
+            lastSentText = text
+            println("BridgeForegroundService: dispatchLocalCopy: '$text'")
+            if (onClipboardSyncRequested != null) {
+                onClipboardSyncRequested?.invoke(text)
+            } else {
+                try {
+                    val shaBytes = IdentityManager.sha256(text.toByteArray(Charsets.UTF_8))
+                    val update = ClipboardUpdate.newBuilder()
+                        .setEventId("clip-" + UUID.randomUUID().toString())
+                        .setOriginDeviceId(localDeviceId)
+                        .setOriginEventId("bg-" + System.currentTimeMillis())
+                        .setContentType("text/plain")
+                        .setText(text)
+                        .setContentSha256(ByteString.copyFrom(shaBytes))
+                        .setCreatedAtUnixMs(System.currentTimeMillis())
+                        .build()
+
+                    val env = Envelope.newBuilder()
+                        .setMessageId(UUID.randomUUID().toString())
+                        .setSessionId("live-session")
+                        .setSenderDeviceId(localDeviceId)
+                        .setProtocolMajor(1)
+                        .setProtocolMinor(0)
+                        .setCreatedAtUnixMs(System.currentTimeMillis())
+                        .setClipboardUpdate(update)
+                        .build()
+
+                    BridgeConnectionManager.sendEnvelope(env) { sent ->
+                        println("BridgeForegroundService: direct sendEnvelope sent=$sent")
+                    }
+                } catch (e: Exception) {
+                    println("BridgeForegroundService: direct send error: ${e.message}")
+                }
+            }
+        }
         fun startService(context: Context, peerName: String) {
             val intent = Intent(context, BridgeForegroundService::class.java).apply {
                 action = ACTION_START
@@ -63,12 +109,52 @@ class BridgeForegroundService : Service() {
     }
 
     private var currentPeerName: String = "Mac"
+    private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        val prefs = getSharedPreferences("bridge_identity", Context.MODE_PRIVATE)
+        localDeviceId = prefs.getString("device_id", "android-phone") ?: "android-phone"
+        setupClipboardListener()
     }
 
+    private fun setupClipboardListener() {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+        clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+            try {
+                val clip = cm.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    val text = clip.getItemAt(0).text?.toString()
+                    if (!text.isNullOrBlank() && text != lastReceivedText && text != lastSentText) {
+                        println("BridgeForegroundService: onPrimaryClipChanged detected text='$text'")
+                        dispatchLocalCopy(text)
+                    }
+                } else {
+                    println("BridgeForegroundService: primaryClip is null or background restricted, launching trampoline...")
+                    val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    startActivity(intent)
+                }
+            } catch (e: Exception) {
+                println("BridgeForegroundService: clip listener exception: ${e.message}")
+                try {
+                    val intent = Intent(this, ClipboardSyncActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    startActivity(intent)
+                } catch (ignored: Exception) {}
+            }
+        }
+        cm.addPrimaryClipChangedListener(clipboardListener)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        clipboardListener?.let { cm?.removePrimaryClipChangedListener(it) }
+    }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
@@ -92,7 +178,7 @@ class BridgeForegroundService : Service() {
                 if (clip != null && clip.itemCount > 0) {
                     val text = clip.getItemAt(0).text?.toString()
                     if (!text.isNullOrBlank()) {
-                        onClipboardSyncRequested?.invoke(text)
+                        dispatchLocalCopy(text)
                     }
                 }
             }
