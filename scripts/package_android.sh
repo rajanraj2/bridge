@@ -18,6 +18,6 @@ if [ ! -f "${APK_SRC}" ]; then
     exit 1
 fi
 
-cp "${APK_SRC}" "${DIST_DIR}/Bridge-v0.1.0.apk"
-echo "Successfully created ${DIST_DIR}/Bridge-v0.1.0.apk:"
-ls -lh "${DIST_DIR}/Bridge-v0.1.0.apk"
+cp "${APK_SRC}" "${DIST_DIR}/Bridge-v0.1.2.apk"
+echo "Successfully created ${DIST_DIR}/Bridge-v0.1.2.apk:"
+ls -lh "${DIST_DIR}/Bridge-v0.1.2.apk"

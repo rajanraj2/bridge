@@ -45,13 +45,13 @@ jobs:
       - name: Stage Android Artifact
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Bridge-v0.1.0.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Bridge-v0.1.2.apk
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
           name: bridge-android-apk
-          path: dist/Bridge-v0.1.0.apk
+          path: dist/Bridge-*.apk
 
   build-macos:
     name: Build macOS App & DMG
@@ -70,7 +70,7 @@ jobs:
         with:
           name: bridge-macos-artifacts
           path: |
-            dist/Bridge-v0.1.0-macOS.zip
+            dist/Bridge-*-macOS.zip
             dist/Bridge*.dmg
 
   publish-release:
@@ -97,12 +97,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || 'v0.1.0' }}
-          name: "Bridge ${{ github.ref_name || 'v0.1.0' }}"
+          tag_name: ${{ github.ref_name || 'v0.1.2' }}
+          name: "Bridge ${{ github.ref_name || 'v0.1.2' }}"
           body_path: CHANGELOG.md
           files: |
-            dist/Bridge-v0.1.0.apk
-            dist/Bridge-v0.1.0-macOS.zip
-            dist/Bridge*.dmg
+            dist/Bridge-*.apk
+            dist/Bridge-*-macOS.zip
+            dist/Bridge-*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

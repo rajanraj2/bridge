@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.2] - 2026-10-20
+
+### Fixed
+- **CI & Release Pipeline**:
+  - Android CI: Configured `gradle/actions/setup-gradle@v4` and pre-installation of Android SDK Platform 35 via `sdkmanager`.
+  - macOS CI: Removed Swift 6-only `nonisolated` type modifiers from generated Protocol Buffers files to ensure 100% compatibility with Xcode 15 / Swift 5.10.
+  - Resolved test fixture path resolution across headless CI runners via `GITHUB_WORKSPACE` and standardized relative paths.
+  - Added loopback interface fallback in `getLocalIpAddresses()` for headless CI environments.
+- **Deployment & Packaging**:
+  - Automated release artifact packaging for Android (`Bridge-0.1.2.apk`) and macOS (`Bridge-0.1.2.dmg` and `Bridge-0.1.2-macOS.zip`).
+
+---
+
 
 ## [0.1.0] - 2026-10-20
 

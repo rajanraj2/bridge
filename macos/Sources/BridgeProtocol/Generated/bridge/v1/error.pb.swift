@@ -15,12 +15,12 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
-public nonisolated enum Bridge_ErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
+public enum Bridge_ErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
   case unsupportedVersion // = 1
@@ -94,7 +94,7 @@ public nonisolated enum Bridge_ErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable
 
 }
 
-public nonisolated struct Bridge_Error: Sendable {
+public struct Bridge_Error: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -114,13 +114,13 @@ public nonisolated struct Bridge_Error: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate nonisolated let _protobuf_package = "bridge.v1"
+fileprivate let _protobuf_package = "bridge.v1"
 
-nonisolated extension Bridge_ErrorCode: SwiftProtobuf._ProtoNameProviding {
+extension Bridge_ErrorCode: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ERROR_CODE_UNSPECIFIED\0\u{1}UNSUPPORTED_VERSION\0\u{1}UNAUTHENTICATED\0\u{1}UNAUTHORIZED\0\u{1}INVALID_MESSAGE\0\u{1}RATE_LIMITED\0\u{1}RESOURCE_EXHAUSTED\0\u{1}TRANSFER_NOT_FOUND\0\u{1}TRANSFER_REJECTED\0\u{1}INTEGRITY_CHECK_FAILED\0\u{1}PERMISSION_REQUIRED\0\u{1}INTERNAL_ERROR\0")
 }
 
-nonisolated extension Bridge_Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Error"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{3}safe_message\0\u{3}correlation_id\0\u{1}retryable\0")
 
