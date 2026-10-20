@@ -30,9 +30,11 @@ public final class BridgeAppModel: ObservableObject {
     @Published public var state: ConnectionState = .disconnected
     @Published public var deviceName: String = Host.current().localizedName ?? "My Mac"
     @Published public var connectedPeerName: String? = nil
+    @Published public var activeRouteType: ConnectionRouteType? = nil
     @Published public var activeSAS: String? = nil
     @Published public var activePairingId: String? = nil
     @Published public var pairedPeers: [TrustedPeer] = []
+    @Published public var tailscaleHost: String = ""
 
     @Published public var notificationsEnabled: Bool = true {
         didSet {
@@ -47,16 +49,21 @@ public final class BridgeAppModel: ObservableObject {
     }
 
     @Published public var lastTransferLog: String? = nil
+    @Published public var exportedDiagnosticBundle: String? = nil
 
     public let deviceId: String
     public let localPublicKey: Data
     public let peerStore: InMemoryTrustedPeerStore
     public let stateMachine: ConnectionStateMachine
     public let pairingCoordinator: PairingCoordinator
+    public let discoveryService: PeerDiscoveryService
+    public let endpointStore: InMemoryRemoteEndpointStore
+    public let router: EndpointRouter
     public let notificationService: NotificationService
     public let clipboardService: ClipboardService
     public let transferManager: FileTransferManager
     public let textSharingService: TextSharingService
+    public let diagnosticLogger: DiagnosticLogger
 
     public var statusIconName: String {
         switch state {
@@ -75,10 +82,16 @@ public final class BridgeAppModel: ObservableObject {
         self.peerStore = store
         self.stateMachine = ConnectionStateMachine()
         self.pairingCoordinator = PairingCoordinator(store: store)
+        let disc = PeerDiscoveryService()
+        self.discoveryService = disc
+        let epStore = InMemoryRemoteEndpointStore()
+        self.endpointStore = epStore
+        self.router = EndpointRouter(discoveryService: disc, endpointStore: epStore)
         self.notificationService = NotificationService()
         self.clipboardService = ClipboardService()
         self.transferManager = FileTransferManager()
         self.textSharingService = TextSharingService()
+        self.diagnosticLogger = DiagnosticLogger.shared
         self.pairedPeers = store.allPeers()
     }
 
@@ -97,6 +110,7 @@ public final class BridgeAppModel: ObservableObject {
             )
         }
         state = stateMachine.handle(event: .startDiscovery)
+        diagnosticLogger.log(category: .connectionState, message: "Pairing initiated")
     }
 
     public func confirmPairing() {
@@ -114,10 +128,13 @@ public final class BridgeAppModel: ObservableObject {
             activeSAS = nil
             state = stateMachine.handle(event: .pairingSucceeded)
             connectedPeerName = "Pixel 8 Pro"
+            activeRouteType = .localLAN
+            diagnosticLogger.log(category: .handshake, message: "Pairing confirmed with Pixel 8 Pro")
         } catch {
             activePairingId = nil
             activeSAS = nil
             state = stateMachine.handle(event: .pairingFailed(error.localizedDescription))
+            diagnosticLogger.log(category: .error, message: "Pairing failed", details: ["reason": error.localizedDescription])
         }
     }
 
@@ -133,11 +150,31 @@ public final class BridgeAppModel: ObservableObject {
         if connectedPeerName != nil {
             disconnect()
         }
+        diagnosticLogger.log(category: .connectionState, message: "Peer revoked", details: ["peerId": deviceId])
     }
 
     public func disconnect() {
         state = stateMachine.handle(event: .disconnect)
         connectedPeerName = nil
+        activeRouteType = nil
+        diagnosticLogger.log(category: .connectionState, message: "Disconnected by user")
+    }
+
+    public func saveTailscaleEndpoint() {
+        guard !tailscaleHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        endpointStore.saveEndpoint(
+            RemoteEndpointConfig(
+                deviceId: "android-sample-peer",
+                tailscaleHost: tailscaleHost.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        )
+        let resolved = router.resolveRoute(for: "android-sample-peer")
+        activeRouteType = resolved?.routeType
+        diagnosticLogger.log(category: .routeSelection, message: "Saved Tailscale remote endpoint: \(tailscaleHost)")
+    }
+
+    public func exportLogs() {
+        exportedDiagnosticBundle = diagnosticLogger.exportDiagnosticBundle()
     }
 
     public func sendSampleFile() {
@@ -150,8 +187,10 @@ public final class BridgeAppModel: ObservableObject {
                 sessionId: "active-session"
             )
             lastTransferLog = "File sent: \(tempFile.lastPathComponent) (\(transferId))"
+            diagnosticLogger.log(category: .transferMetric, message: "Outbound file transfer: \(tempFile.lastPathComponent)")
         } catch {
             lastTransferLog = "Transfer error: \(error.localizedDescription)"
+            diagnosticLogger.log(category: .error, message: "Transfer initiation failed", details: ["error": error.localizedDescription])
         }
     }
 
@@ -164,6 +203,7 @@ public final class BridgeAppModel: ObservableObject {
                 sessionId: "active-session"
             )
             lastTransferLog = "URL sent: \(urlString)"
+            diagnosticLogger.log(category: .transferMetric, message: "URL shared")
         } catch {
             lastTransferLog = "Share error: \(error.localizedDescription)"
         }
@@ -184,6 +224,17 @@ struct BridgeMenuView: View {
                     .font(.caption)
                     .foregroundColor(model.state == .connected ? .green : .secondary)
             }
+
+            if let route = model.activeRouteType {
+                HStack {
+                    Image(systemName: route == .localLAN ? "wifi" : "network")
+                        .foregroundColor(.blue)
+                    Text(route == .localLAN ? "Local Wi-Fi" : "Tailscale Remote")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
             Divider()
 
             if let peer = model.connectedPeerName {
@@ -277,53 +328,105 @@ struct BridgeSettingsView: View {
     @ObservedObject var model: BridgeAppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Bridge Preferences")
-                .font(.title2)
-                .bold()
-            Text("Device: \(model.deviceName)")
-            Text("Device ID: \(model.deviceId)")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.secondary)
-            Text("Status: \(model.state.rawValue.capitalized)")
-
-            Divider()
-
-            Text("Capabilities")
-                .font(.headline)
-            Toggle("Mirror Android notifications to macOS", isOn: $model.notificationsEnabled)
-            Toggle("Bidirectional clipboard synchronization", isOn: $model.clipboardEnabled)
-
-            Divider()
-
-            Text("Paired Devices (\(model.pairedPeers.count))")
-                .font(.headline)
-
-            if model.pairedPeers.isEmpty {
-                Text("No paired devices.")
-                    .font(.subheadline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Bridge Preferences")
+                    .font(.title2)
+                    .bold()
+                Text("Device: \(model.deviceName)")
+                Text("Device ID: \(model.deviceId)")
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
-            } else {
-                ForEach(model.pairedPeers) { peer in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(peer.displayName).bold()
-                            Text(peer.publicKeyFingerprint)
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundColor(.secondary)
+                Text("Status: \(model.state.rawValue.capitalized)")
+
+                Divider()
+
+                Text("Tailscale Remote Endpoint")
+                    .font(.headline)
+                Text("Configure Tailscale IP (100.x) or MagicDNS hostname for remote fallback:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                HStack {
+                    TextField("100.x.y.z or phone.magicdns.net", text: $model.tailscaleHost)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Save Route") {
+                        model.saveTailscaleEndpoint()
+                    }
+                }
+
+                Divider()
+
+                Text("Capabilities")
+                    .font(.headline)
+                Toggle("Mirror Android notifications to macOS", isOn: $model.notificationsEnabled)
+                Toggle("Bidirectional clipboard synchronization", isOn: $model.clipboardEnabled)
+
+                Divider()
+
+                Text("Permissions & Remediation")
+                    .font(.headline)
+                ForEach(PermissionAdvisor.evaluateMacPermissions()) { item in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(item.name).bold()
+                            Spacer()
+                            Text(item.status.rawValue.capitalized)
+                                .font(.caption)
+                                .foregroundColor(.green)
                         }
-                        Spacer()
-                        Button("Revoke") {
-                            model.revokePeer(deviceId: peer.deviceId)
+                        Text(item.description)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                Divider()
+
+                Text("Paired Devices (\(model.pairedPeers.count))")
+                    .font(.headline)
+
+                if model.pairedPeers.isEmpty {
+                    Text("No paired devices.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(model.pairedPeers) { peer in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(peer.displayName).bold()
+                                Text(peer.publicKeyFingerprint)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button("Revoke") {
+                                model.revokePeer(deviceId: peer.deviceId)
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer()
+                Divider()
+
+                Text("Privacy & Diagnostics")
+                    .font(.headline)
+                Button("Export Redacted Diagnostic Bundle") {
+                    model.exportLogs()
+                }
+                if let logs = model.exportedDiagnosticBundle {
+                    Text(logs)
+                        .font(.system(size: 9, design: .monospaced))
+                        .padding(8)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(4)
+                }
+
+                Spacer()
+            }
+            .padding(24)
         }
-        .padding(24)
-        .frame(width: 480, height: 420)
+        .frame(width: 520, height: 480)
     }
 }
 
@@ -346,15 +449,20 @@ struct BridgeApp {
         print("SAS Verification Code: \(sas)")
 
         _ = NotificationService()
-        print("Notification Service initialized")
-
         _ = ClipboardService()
-        print("Clipboard Service initialized")
-
         _ = FileTransferManager()
-        print("File Transfer Manager initialized (chunkSize=\(FileTransferManager.defaultChunkSize) bytes)")
 
-        print("Ready for pairing, notifications, clipboard, and chunked file transfer.")
+        let epStore = InMemoryRemoteEndpointStore()
+        epStore.saveEndpoint(RemoteEndpointConfig(deviceId: "peer-1", tailscaleHost: "100.100.100.100"))
+        let disc = PeerDiscoveryService()
+        let router = EndpointRouter(discoveryService: disc, endpointStore: epStore)
+        let route = router.resolveRoute(for: "peer-1")
+        print("Resolved Route: \(route?.routeType.rawValue ?? "none") to \(route?.host ?? "")")
+
+        let logger = DiagnosticLogger.shared
+        logger.log(category: .connectionState, message: "M4 Remote and Polish verification complete")
+        let bundle = logger.exportDiagnosticBundle()
+        print("Exported Redacted Diagnostic Bundle (\(bundle.count) bytes)")
     }
 }
 #endif
