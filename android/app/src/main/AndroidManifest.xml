@@ -75,6 +75,7 @@
             android:noHistory="true"
             android:exported="true"
             android:taskAffinity=""
+            android:windowSoftInputMode="stateUnchanged|adjustNothing"
             android:launchMode="singleTop" />
     </application>
 

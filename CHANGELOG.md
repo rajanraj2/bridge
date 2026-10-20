@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.12] - 2026-10-21
+
+### Fixed
+- **Android Soft Keyboard Flicker Prevention**:
+  - Configured focus window with `SOFT_INPUT_STATE_UNCHANGED` and `FLAG_ALT_FOCUSABLE_IM` so the keyboard remains open when copying text in external apps.
+- **Wispr Flow & Dictation Filter on macOS**:
+  - Filtered transient and auto-generated pasteboard types (`org.nspasteboard.TransientType`).
+  - Added a 400ms settle debounce in pasteboard monitoring so temporary text injections from dictation tools like Wispr Flow revert locally without syncing to the phone.
+
+---
 ## [0.1.11] - 2026-10-21
 
 ### Fixed
