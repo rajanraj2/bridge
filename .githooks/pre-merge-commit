@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+if [ "$CURRENT_BRANCH" = "main" ]; then
+    echo "❌ ERROR: Local merges into the 'main' branch are strictly forbidden."
+    echo "All changes must be merged via GitHub Pull Request after CI checks pass."
+    echo "Please open a PR for your feature branch."
+    exit 1
+fi
