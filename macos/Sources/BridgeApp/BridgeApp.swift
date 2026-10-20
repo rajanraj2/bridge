@@ -193,36 +193,34 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     public func onEnvelopeReceived(envelope: Bridge_Envelope) {
         DispatchQueue.main.async {
-            if envelope.hasClipboardUpdate {
+            switch envelope.payload {
+            case .clipboardUpdate:
                 if case .success(let text) = self.clipboardService.handleRemoteUpdate(envelope: envelope, localDeviceId: self.deviceId) {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
                     self.lastPasteboardChangeCount = NSPasteboard.general.changeCount
                 }
-            }
-            if envelope.hasNotificationEvent {
+            case .notificationEvent(let notif):
                 self.notificationService.handleIncomingNotification(envelope)
-                let title = envelope.notificationEvent.title
-                let body = envelope.notificationEvent.body
-                // Post macOS native user alert
+                let title = notif.title
+                let body = notif.body
                 let alertScript = "display notification \"\(body)\" with title \"\(title)\" subtitle \"Bridge from Phone\""
                 if let appleScript = NSAppleScript(source: alertScript) {
                     var errorInfo: NSDictionary?
                     appleScript.executeAndReturnError(&errorInfo)
                 }
-            }
-            if envelope.hasShareText {
-                self.textSharingService.handleIncomingShare(envelope)
-            }
-            if envelope.hasFileRequest {
+            case .shareText:
+                _ = self.textSharingService.handleIncomingShare(envelope)
+            case .fileRequest:
                 if let acceptEnv = try? self.transferManager.handleIncomingRequest(envelope, senderDeviceId: self.deviceId, sessionId: "live-session", autoAccept: true) {
                     self.sendEnvelope(acceptEnv)
                 }
-            }
-            if envelope.hasFileChunk {
+            case .fileChunk:
                 if let (_, completedURL) = try? self.transferManager.handleIncomingChunk(envelope), let url = completedURL {
                     self.lastTransferLog = "File received: \(url.lastPathComponent) (saved to Downloads)"
                 }
+            default:
+                break
             }
         }
     }
