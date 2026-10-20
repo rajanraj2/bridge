@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.9] - 2026-10-20
+
+### Added
+- **System-Wide Background Copy Synchronization**:
+  - Integrated `BridgeAccessibilityService` to listen for text copy events across all Android applications without user intervention.
+  - Combined with background service logcat watcher and 1x1 transparent focus trampoline for instant capture.
+  - Transmits newly copied content directly to paired Mac over TCP/TLS in real time.
+
+---
 ## [0.1.8] - 2026-10-20
 
 ### Added
