@@ -40,13 +40,14 @@ public final class Clipboard extends com.google.protobuf.GeneratedFile {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\031bridge/v1/clipboard.proto\022\tbridge.v1\"\256" +
+      "\n\031bridge/v1/clipboard.proto\022\tbridge.v1\"\325" +
       "\001\n\017ClipboardUpdate\022\020\n\010event_id\030\001 \001(\t\022\030\n\020" +
       "origin_device_id\030\002 \001(\t\022\027\n\017origin_event_i" +
       "d\030\003 \001(\t\022\024\n\014content_type\030\004 \001(\t\022\014\n\004text\030\005 " +
       "\001(\t\022\026\n\016content_sha256\030\006 \001(\014\022\032\n\022created_a" +
-      "t_unix_ms\030\007 \001(\003B$\n\026dev.bridge.protocol.v" +
-      "1P\001\272\002\007Bridge_b\006proto3"
+      "t_unix_ms\030\007 \001(\003\022\022\n\nimage_data\030\010 \001(\014\022\021\n\tf" +
+      "ile_name\030\t \001(\tB$\n\026dev.bridge.protocol.v1" +
+      "P\001\272\002\007Bridge_b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -57,7 +58,7 @@ public final class Clipboard extends com.google.protobuf.GeneratedFile {
     internal_static_bridge_v1_ClipboardUpdate_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_bridge_v1_ClipboardUpdate_descriptor,
-        new java.lang.String[] { "EventId", "OriginDeviceId", "OriginEventId", "ContentType", "Text", "ContentSha256", "CreatedAtUnixMs", });
+        new java.lang.String[] { "EventId", "OriginDeviceId", "OriginEventId", "ContentType", "Text", "ContentSha256", "CreatedAtUnixMs", "ImageData", "FileName", });
     descriptor.resolveAllFeaturesImmutable();
   }
 

@@ -48,7 +48,7 @@ public interface ClipboardUpdateOrBuilder extends
 
   /**
    * <pre>
-   * MVP: text/plain
+   * text/plain, image/png, image/jpeg, application/octet-stream
    * </pre>
    *
    * <code>string content_type = 4;</code>
@@ -57,7 +57,7 @@ public interface ClipboardUpdateOrBuilder extends
   java.lang.String getContentType();
   /**
    * <pre>
-   * MVP: text/plain
+   * text/plain, image/png, image/jpeg, application/octet-stream
    * </pre>
    *
    * <code>string content_type = 4;</code>
@@ -89,4 +89,22 @@ public interface ClipboardUpdateOrBuilder extends
    * @return The createdAtUnixMs.
    */
   long getCreatedAtUnixMs();
+
+  /**
+   * <code>bytes image_data = 8;</code>
+   * @return The imageData.
+   */
+  com.google.protobuf.ByteString getImageData();
+
+  /**
+   * <code>string file_name = 9;</code>
+   * @return The fileName.
+   */
+  java.lang.String getFileName();
+  /**
+   * <code>string file_name = 9;</code>
+   * @return The bytes for fileName.
+   */
+  com.google.protobuf.ByteString
+      getFileNameBytes();
 }

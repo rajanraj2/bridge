@@ -12,8 +12,8 @@ android {
         applicationId = "dev.bridge.app"
         minSdk = 30
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.1.16"
+        versionCode = 16
+        versionName = "0.1.17"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

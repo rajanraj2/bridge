@@ -54,7 +54,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     @Published public var lastTransferLog: String? = nil
     @Published public var exportedDiagnosticBundle: String? = nil
-    public let appVersion = "0.1.16"
+    public let appVersion = "0.1.17"
     @Published public var availableUpdate: UpdateInfo? = nil
     @Published public var updateStatusText: String? = nil
     @Published public var isCheckingUpdates: Bool = false
@@ -171,21 +171,31 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
                     return
                 }
 
-                guard let string = NSPasteboard.general.string(forType: .string), !string.isEmpty else { return }
+                if let string = NSPasteboard.general.string(forType: .string), !string.isEmpty {
+                    self.pendingPasteboardTask?.cancel()
+                    self.pendingPasteboardTask = Task { @MainActor [weak self] in
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                        guard !Task.isCancelled, let self = self else { return }
 
-                // Settle debounce: Wispr Flow injects and reverts clipboard within 350ms
-                self.pendingPasteboardTask?.cancel()
-                self.pendingPasteboardTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(nanoseconds: 400_000_000)
-                    guard !Task.isCancelled, let self = self else { return }
-
-                    let settledCount = NSPasteboard.general.changeCount
-                    let settledString = NSPasteboard.general.string(forType: .string)
-                    if settledCount == current && settledString == string {
-                        if let env = self.clipboardService.handleLocalCopy(text: string, localDeviceId: self.deviceId, sessionId: "live-session", forceSend: true) {
-                            self.sendEnvelope(env)
-                            self.lastTransferLog = "Sent to phone: \(string.prefix(25))..."
+                        let settledCount = NSPasteboard.general.changeCount
+                        let settledString = NSPasteboard.general.string(forType: .string)
+                        if settledCount == current && settledString == string {
+                            if let env = self.clipboardService.handleLocalCopy(text: string, localDeviceId: self.deviceId, sessionId: "live-session", forceSend: true) {
+                                self.sendEnvelope(env)
+                                self.lastTransferLog = "Sent to phone: \(string.prefix(25))..."
+                            }
                         }
+                    }
+                } else if let imgData = NSPasteboard.general.data(forType: .png) ?? NSPasteboard.general.data(forType: .tiff) {
+                    if let env = self.clipboardService.handleLocalImageCopy(
+                        imageData: imgData,
+                        contentType: "image/png",
+                        localDeviceId: self.deviceId,
+                        sessionId: "live-session",
+                        forceSend: true
+                    ) {
+                        self.sendEnvelope(env)
+                        self.lastTransferLog = "Sent image to phone (\(imgData.count / 1024) KB)..."
                     }
                 }
             }
@@ -226,18 +236,25 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
         DispatchQueue.main.async {
             switch envelope.payload {
             case .clipboardUpdate:
-                switch self.clipboardService.handleRemoteUpdate(envelope: envelope, localDeviceId: self.deviceId) {
-                case .success(let text):
+                switch self.clipboardService.handleRemotePayload(envelope: envelope, localDeviceId: self.deviceId) {
+                case .success(let payload):
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
+                    if let imgData = payload.imageData {
+                        NSPasteboard.general.setData(imgData, forType: .png)
+                        self.lastTransferLog = "Image received (\(imgData.count / 1024) KB)"
+                    } else if let text = payload.text {
+                        NSPasteboard.general.setString(text, forType: .string)
+                        self.lastTransferLog = "Clipboard received: \(text.prefix(25))..."
+                    }
                     self.lastPasteboardChangeCount = NSPasteboard.general.changeCount
-                    self.lastTransferLog = "Clipboard received: \(text.prefix(25))..."
+
                     var relayEnv = envelope
                     if !relayEnv.visitedDeviceIds.contains(self.deviceId) {
                         relayEnv.visitedDeviceIds.append(self.deviceId)
                         self.sendEnvelope(relayEnv)
                     }
-                    let alertScript = "display notification \"\(text.prefix(40))\" with title \"Clipboard Synced\" subtitle \"From Mesh Peer\""
+                    let notifBody = payload.text != nil ? payload.text!.prefix(40) : "Image ready to paste"
+                    let alertScript = "display notification \"\(notifBody)\" with title \"Clipboard Synced\" subtitle \"From Mesh Peer\""
                     if let appleScript = NSAppleScript(source: alertScript) {
                         var err: NSDictionary?
                         appleScript.executeAndReturnError(&err)

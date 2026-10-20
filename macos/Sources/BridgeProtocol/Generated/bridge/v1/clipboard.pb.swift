@@ -36,7 +36,7 @@ public struct Bridge_ClipboardUpdate: Sendable {
 
   public var originEventID: String = String()
 
-  /// MVP: text/plain
+  /// text/plain, image/png, image/jpeg, application/octet-stream
   public var contentType: String = String()
 
   public var text: String = String()
@@ -44,6 +44,10 @@ public struct Bridge_ClipboardUpdate: Sendable {
   public var contentSha256: Data = Data()
 
   public var createdAtUnixMs: Int64 = 0
+
+  public var imageData: Data = Data()
+
+  public var fileName: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -56,7 +60,7 @@ fileprivate let _protobuf_package = "bridge.v1"
 
 extension Bridge_ClipboardUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClipboardUpdate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}event_id\0\u{3}origin_device_id\0\u{3}origin_event_id\0\u{3}content_type\0\u{1}text\0\u{3}content_sha256\0\u{3}created_at_unix_ms\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}event_id\0\u{3}origin_device_id\0\u{3}origin_event_id\0\u{3}content_type\0\u{1}text\0\u{3}content_sha256\0\u{3}created_at_unix_ms\0\u{3}image_data\0\u{3}file_name\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -71,6 +75,8 @@ extension Bridge_ClipboardUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       case 5: try { try decoder.decodeSingularStringField(value: &self.text) }()
       case 6: try { try decoder.decodeSingularBytesField(value: &self.contentSha256) }()
       case 7: try { try decoder.decodeSingularInt64Field(value: &self.createdAtUnixMs) }()
+      case 8: try { try decoder.decodeSingularBytesField(value: &self.imageData) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.fileName) }()
       default: break
       }
     }
@@ -98,6 +104,12 @@ extension Bridge_ClipboardUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if self.createdAtUnixMs != 0 {
       try visitor.visitSingularInt64Field(value: self.createdAtUnixMs, fieldNumber: 7)
     }
+    if !self.imageData.isEmpty {
+      try visitor.visitSingularBytesField(value: self.imageData, fieldNumber: 8)
+    }
+    if !self.fileName.isEmpty {
+      try visitor.visitSingularStringField(value: self.fileName, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -109,6 +121,8 @@ extension Bridge_ClipboardUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if lhs.text != rhs.text {return false}
     if lhs.contentSha256 != rhs.contentSha256 {return false}
     if lhs.createdAtUnixMs != rhs.createdAtUnixMs {return false}
+    if lhs.imageData != rhs.imageData {return false}
+    if lhs.fileName != rhs.fileName {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

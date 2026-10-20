@@ -85,11 +85,24 @@ public final class ClipboardCache: @unchecked Sendable {
     }
 }
 
+public struct ReceivedClipboardPayload: Sendable {
+    public let text: String?
+    public let imageData: Data?
+    public let contentType: String
+    public let fileName: String?
+
+    public init(text: String? = nil, imageData: Data? = nil, contentType: String = "text/plain", fileName: String? = nil) {
+        self.text = text
+        self.imageData = imageData
+        self.contentType = contentType
+        self.fileName = fileName
+    }
+}
+
 public protocol PasteboardAdapter: AnyObject, Sendable {
     func getPasteboardString() -> String?
     func setPasteboardString(_ text: String)
 }
-
 public final class ClipboardService: @unchecked Sendable {
     private let lock = NSLock()
     public var policy: ClipboardPolicy
@@ -161,13 +174,66 @@ public final class ClipboardService: @unchecked Sendable {
         syncedCount += 1
         return env
     }
+    /// Creates an image/file clipboard update envelope.
+    public func handleLocalImageCopy(
+        imageData: Data,
+        contentType: String = "image/png",
+        fileName: String? = nil,
+        localDeviceId: String,
+        sessionId: String,
+        forceSend: Bool = false
+    ) -> Bridge_Envelope? {
+        lock.lock()
+        defer { lock.unlock() }
 
-    /// Ingests a received ClipboardUpdate envelope from the remote device.
-    /// Returns the text to apply if eligible, or nil with rejection reason.
-    public func handleRemoteUpdate(
+        guard policy.enabled else { return nil }
+        guard imageData.count <= 10_485_760 else { return nil }
+
+        let shaData = IdentityManager.sha256(data: imageData)
+        let shaHex = shaData.map { String(format: "%02x", $0) }.joined()
+
+        if !forceSend && policy.preventEchoLoops && cache.isContentRecent(contentSha256Hex: shaHex) {
+            echoBlockedCount += 1
+            return nil
+        }
+
+        localEventCounter += 1
+        let eventId = "clip-img-" + UUID().uuidString.lowercased()
+        let originEventId = "local-\(localEventCounter)"
+
+        cache.recordEvent(eventId: eventId, contentSha256Hex: shaHex)
+
+        var env = Bridge_Envelope()
+        env.messageID = UUID().uuidString.lowercased()
+        env.sessionID = sessionId
+        env.senderDeviceID = localDeviceId
+        env.sequenceNumber = localEventCounter
+        env.createdAtUnixMs = Int64(Date().timeIntervalSince1970 * 1000)
+        env.protocolMajor = 1
+        env.protocolMinor = 0
+
+        var update = Bridge_ClipboardUpdate()
+        update.eventID = eventId
+        update.originDeviceID = localDeviceId
+        update.originEventID = originEventId
+        update.contentType = contentType
+        update.imageData = imageData
+        if let fn = fileName {
+            update.fileName = fn
+        }
+        update.contentSha256 = shaData
+        update.createdAtUnixMs = env.createdAtUnixMs
+
+        env.clipboardUpdate = update
+        syncedCount += 1
+        return env
+    }
+
+    /// Ingests a received ClipboardUpdate envelope supporting text and image payloads.
+    public func handleRemotePayload(
         envelope: Bridge_Envelope,
         localDeviceId: String
-    ) -> Result<String, ClipboardEchoRejectionReason> {
+    ) -> Result<ReceivedClipboardPayload, ClipboardEchoRejectionReason> {
         lock.lock()
         defer { lock.unlock() }
 
@@ -179,31 +245,46 @@ public final class ClipboardService: @unchecked Sendable {
             return .failure(.eventAlreadyProcessed)
         }
 
-        // 1. Origin check: If origin is self, discard immediately
         if update.originDeviceID == localDeviceId {
             echoBlockedCount += 1
             return .failure(.originIsSelf)
         }
 
-        // 2. Event deduplication check
         if cache.isEventProcessed(eventId: update.eventID) {
             echoBlockedCount += 1
             return .failure(.eventAlreadyProcessed)
         }
 
-        // 3. Size check
         if update.text.count > policy.maxTextLength {
             return .failure(.textExceedsLimit)
         }
 
         let shaHex = update.contentSha256.map { String(format: "%02x", $0) }.joined()
-        // Content hash check only applies to local copy echo, not legitimate remote updates
-
-        // Record event and hash before writing to pasteboard
         cache.recordEvent(eventId: update.eventID, contentSha256Hex: shaHex)
-        adapter?.setPasteboardString(update.text)
+
+        if !update.text.isEmpty {
+            adapter?.setPasteboardString(update.text)
+        }
         syncedCount += 1
 
-        return .success(update.text)
+        let payload = ReceivedClipboardPayload(
+            text: update.text.isEmpty ? nil : update.text,
+            imageData: update.imageData.isEmpty ? nil : update.imageData,
+            contentType: update.contentType,
+            fileName: update.fileName.isEmpty ? nil : update.fileName
+        )
+        return .success(payload)
+    }
+
+    public func handleRemoteUpdate(
+        envelope: Bridge_Envelope,
+        localDeviceId: String
+    ) -> Result<String, ClipboardEchoRejectionReason> {
+        switch handleRemotePayload(envelope: envelope, localDeviceId: localDeviceId) {
+        case .success(let payload):
+            return .success(payload.text ?? "[Image Received]")
+        case .failure(let err):
+            return .failure(err)
+        }
     }
 }
