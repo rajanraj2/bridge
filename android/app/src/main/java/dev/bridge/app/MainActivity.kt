@@ -215,7 +215,16 @@ fun BridgeDashboard(
     BridgeNotificationListenerService.localDeviceId = localDeviceId
     BridgeNotificationListenerService.activeSessionId = "live-session"
 
-    // Clipboard listener hook
+    // Hook up background notification action sync
+    BridgeForegroundService.onClipboardSyncRequested = { text ->
+        val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
+        if (env != null) {
+            val sent = socketServer?.sendEnvelope(env) == true || socketClient?.sendEnvelope(env) == true
+            lastActionLog = if (sent) "Sent to Mac: ${text.take(30)}..." else "Could not send (not connected)"
+        }
+    }
+
+    // Clipboard listener hook for foreground changes
     DisposableEffect(clipboardEnabled) {
         val listener = ClipboardManager.OnPrimaryClipChangedListener {
             if (clipboardEnabled) {
@@ -225,8 +234,8 @@ fun BridgeDashboard(
                     if (!text.isNullOrBlank()) {
                         val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
                         if (env != null) {
-                            socketServer?.sendEnvelope(env) ?: socketClient?.sendEnvelope(env)
-                            lastActionLog = "Synced clipboard: ${text.take(30)}..."
+                            val sent = socketServer?.sendEnvelope(env) == true || socketClient?.sendEnvelope(env) == true
+                            if (sent) lastActionLog = "Synced clipboard: ${text.take(30)}..."
                         }
                     }
                 }
@@ -235,6 +244,7 @@ fun BridgeDashboard(
         clipboardManager.addPrimaryClipChangedListener(listener)
         onDispose {
             clipboardManager.removePrimaryClipChangedListener(listener)
+            BridgeForegroundService.onClipboardSyncRequested = null
         }
     }
 
@@ -777,6 +787,29 @@ fun BridgeDashboard(
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (clipboardEnabled) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = {
+                            val clip = clipboardManager.primaryClip
+                            val text = if (clip != null && clip.itemCount > 0) clip.getItemAt(0).text?.toString() else null
+                            if (!text.isNullOrBlank()) {
+                                val env = clipboardProcessor.handleLocalCopy(text, localDeviceId, "live-session")
+                                if (env != null) {
+                                    val sent = socketServer?.sendEnvelope(env) == true || socketClient?.sendEnvelope(env) == true
+                                    lastActionLog = if (sent) "Sent clipboard: ${text.take(35)}..." else "Cannot send (Mac not connected)"
+                                } else {
+                                    lastActionLog = "Clipboard text unchanged or already sent"
+                                }
+                            } else {
+                                lastActionLog = "Clipboard is currently empty"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("📋 Send Current Clipboard to Mac")
+                    }
+                }
             }
         }
 

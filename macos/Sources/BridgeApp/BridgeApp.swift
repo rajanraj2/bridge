@@ -195,10 +195,19 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
         DispatchQueue.main.async {
             switch envelope.payload {
             case .clipboardUpdate:
-                if case .success(let text) = self.clipboardService.handleRemoteUpdate(envelope: envelope, localDeviceId: self.deviceId) {
+                switch self.clipboardService.handleRemoteUpdate(envelope: envelope, localDeviceId: self.deviceId) {
+                case .success(let text):
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
                     self.lastPasteboardChangeCount = NSPasteboard.general.changeCount
+                    self.lastTransferLog = "Clipboard received from phone: \(text.prefix(25))..."
+                    let alertScript = "display notification \"\(text.prefix(40))\" with title \"Clipboard Synced\" subtitle \"From Android Phone\""
+                    if let appleScript = NSAppleScript(source: alertScript) {
+                        var err: NSDictionary?
+                        appleScript.executeAndReturnError(&err)
+                    }
+                case .failure(let reason):
+                    self.lastTransferLog = "Clipboard rejected: \(reason)"
                 }
             case .notificationEvent(let notif):
                 self.notificationService.handleIncomingNotification(envelope)

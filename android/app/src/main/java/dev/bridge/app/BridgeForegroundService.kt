@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -19,7 +20,11 @@ class BridgeForegroundService : Service() {
 
         const val ACTION_START = "dev.bridge.app.action.START"
         const val ACTION_STOP = "dev.bridge.app.action.STOP"
+        const val ACTION_SYNC_CLIPBOARD = "dev.bridge.app.action.SYNC_CLIPBOARD"
         const val EXTRA_PEER_NAME = "extra_peer_name"
+
+        var onClipboardSyncRequested: ((String) -> Unit)? = null
+        var isServiceRunning: Boolean = false
 
         fun startService(context: Context, peerName: String) {
             val intent = Intent(context, BridgeForegroundService::class.java).apply {
@@ -41,6 +46,8 @@ class BridgeForegroundService : Service() {
         }
     }
 
+    private var currentPeerName: String = "Mac"
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -49,8 +56,9 @@ class BridgeForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val peerName = intent.getStringExtra(EXTRA_PEER_NAME) ?: "MacBook"
-                val notification = buildForegroundNotification(peerName)
+                isServiceRunning = true
+                currentPeerName = intent.getStringExtra(EXTRA_PEER_NAME) ?: "Mac"
+                val notification = buildForegroundNotification(currentPeerName)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(
@@ -62,7 +70,19 @@ class BridgeForegroundService : Service() {
                     startForeground(NOTIFICATION_ID, notification)
                 }
             }
+            ACTION_SYNC_CLIPBOARD -> {
+                // Reads current clipboard from notification action and dispatches
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                val clip = cm?.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    val text = clip.getItemAt(0).text?.toString()
+                    if (!text.isNullOrBlank()) {
+                        onClipboardSyncRequested?.invoke(text)
+                    }
+                }
+            }
             ACTION_STOP -> {
+                isServiceRunning = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -95,12 +115,24 @@ class BridgeForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        // Action button to push copied text to Mac directly from notification shade
+        val syncIntent = Intent(this, BridgeForegroundService::class.java).apply {
+            action = ACTION_SYNC_CLIPBOARD
+        }
+        val syncPendingIntent = PendingIntent.getService(
+            this,
+            1,
+            syncIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Bridge Active")
+            .setContentTitle("Bridge Connected")
             .setContentText("Connected to $peerName")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_menu_send, "📋 Send Copied Text to Mac", syncPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
