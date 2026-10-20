@@ -15,13 +15,13 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
 /// Top-level wire envelope for all Bridge messages.
-public nonisolated struct Bridge_Envelope: @unchecked Sendable {
+public struct Bridge_Envelope: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -190,7 +190,7 @@ public nonisolated struct Bridge_Envelope: @unchecked Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public nonisolated enum OneOf_Payload: Equatable, Sendable {
+  public enum OneOf_Payload: Equatable, Sendable {
     case hello(Bridge_Hello)
     case helloAck(Bridge_HelloAck)
     case pairing(Bridge_PairingMessage)
@@ -215,9 +215,9 @@ public nonisolated struct Bridge_Envelope: @unchecked Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate nonisolated let _protobuf_package = "bridge.v1"
+fileprivate let _protobuf_package = "bridge.v1"
 
-nonisolated extension Bridge_Envelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Bridge_Envelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Envelope"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}session_id\0\u{3}sender_device_id\0\u{3}sequence_number\0\u{3}created_at_unix_ms\0\u{3}protocol_major\0\u{3}protocol_minor\0\u{3}target_device_id\0\u{3}visited_device_ids\0\u{1}hello\0\u{3}hello_ack\0\u{1}pairing\0\u{1}heartbeat\0\u{1}error\0\u{4}\u{6}clipboard_update\0\u{3}notification_event\0\u{3}notification_action\0\u{3}share_text\0\u{4}\u{7}file_request\0\u{3}file_accept\0\u{3}file_chunk\0\u{3}file_complete\0\u{3}file_cancel\0")
 
