@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.18] - 2026-10-21
+
+### Added
+- **Universal Direct Copy-Paste for All File Formats**:
+  - Configured Android `FileProvider` (`dev.bridge.app.fileprovider`) so any copied file (`.doc`, `.docx`, `.zip`, `.pdf`, `.exe`, `.png`, media) can be pasted directly into external Android applications via secure content URI.
+  - Added URI reading in `BridgeForegroundService` and `ClipboardSyncActivity` to capture files and images copied on Android and transmit them across the mesh.
+  - Implemented macOS Finder `fileURL` and dual-representation (`.tiff` + `.png`) write routines on `NSPasteboard` so `Cmd + V` in Finder pastes received files and in document editors pastes images.
+- **Homebrew Disambiguation**:
+  - Added `bridge-continuity.rb` to Homebrew tap (`brew install --cask rajanraj2/tap/bridge-continuity`) preventing namespace collisions with Quixel Bridge in core Homebrew.
+- **In-App Relaunch Action**:
+  - Added **"🔄 Relaunch App"** button in update banner to terminate stale in-memory daemons and spawn the freshly installed app binary.
+
+---
 ## [0.1.17] - 2026-10-21
 
 ### Added

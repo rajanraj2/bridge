@@ -28,10 +28,13 @@ Choose your preferred installation method:
 
 #### 1. Homebrew Cask (Recommended)
 ```bash
-brew install --cask rajanraj2/tap/bridge
+brew install --cask rajanraj2/tap/bridge-continuity
 ```
-*To update later:* `brew upgrade --cask bridge`
-
+*To update later:*
+```bash
+brew upgrade --cask rajanraj2/tap/bridge-continuity
+```
+*(Using `bridge-continuity` avoids naming collisions with Epic Games Quixel Bridge in core Homebrew)*
 #### 2. One-Line Terminal Installer
 Installs the universal binary (`arm64` + `x86_64`) into `/Applications`:
 ```bash
