@@ -78,6 +78,43 @@ class BridgeForegroundService : Service() {
             } catch (ignored: Exception) {}
         }
 
+        fun dispatchLocalFileOrImage(
+            bytes: ByteArray,
+            contentType: String,
+            fileName: String?
+        ) {
+            if (bytes.isEmpty()) return
+            println("BridgeForegroundService: dispatchLocalFileOrImage: mime=$contentType, name=$fileName, size=${bytes.size}")
+            try {
+                val shaBytes = IdentityManager.sha256(bytes)
+                val update = ClipboardUpdate.newBuilder()
+                    .setEventId("clip-file-" + UUID.randomUUID().toString().lowercase())
+                    .setOriginDeviceId(localDeviceId)
+                    .setOriginEventId("bg-" + System.currentTimeMillis())
+                    .setContentType(contentType)
+                    .setImageData(ByteString.copyFrom(bytes))
+                    .apply { if (fileName != null) setFileName(fileName) }
+                    .setContentSha256(ByteString.copyFrom(shaBytes))
+                    .setCreatedAtUnixMs(System.currentTimeMillis())
+                    .build()
+
+                val env = Envelope.newBuilder()
+                    .setMessageId(UUID.randomUUID().toString().lowercase())
+                    .setSessionId("live-session")
+                    .setSenderDeviceId(localDeviceId)
+                    .setProtocolMajor(1)
+                    .setProtocolMinor(0)
+                    .setCreatedAtUnixMs(System.currentTimeMillis())
+                    .setClipboardUpdate(update)
+                    .build()
+
+                BridgeConnectionManager.sendEnvelope(env) { sent ->
+                    println("BridgeForegroundService: direct sendEnvelope file/image sent=$sent")
+                }
+            } catch (e: Exception) {
+                println("BridgeForegroundService: direct send file/image error: ${e.message}")
+            }
+        }
         private var lastTrampolineLaunchTime = 0L
 
         fun triggerTrampolineFromService(context: Context) {
@@ -144,10 +181,21 @@ class BridgeForegroundService : Service() {
             try {
                 val clip = cm.primaryClip
                 if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0).coerceToText(this).toString()
-                    if (!text.isNullOrBlank() && text != lastReceivedText && text != lastSentText) {
-                        println("BridgeForegroundService: onPrimaryClipChanged detected text='$text'")
-                        dispatchLocalCopy(text)
+                    val item = clip.getItemAt(0)
+                    val uri = item.uri
+                    if (uri != null) {
+                        val mime = contentResolver.getType(uri) ?: "application/octet-stream"
+                        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val fileName = getFileNameFromUri(uri)
+                            dispatchLocalFileOrImage(bytes, mime, fileName)
+                        }
+                    } else {
+                        val text = item.coerceToText(this).toString()
+                        if (!text.isNullOrBlank() && text != lastReceivedText && text != lastSentText) {
+                            println("BridgeForegroundService: onPrimaryClipChanged detected text='$text'")
+                            dispatchLocalCopy(text)
+                        }
                     }
                 } else {
                     triggerTrampolineFromService(this)
@@ -157,6 +205,21 @@ class BridgeForegroundService : Service() {
             }
         }
         cm.addPrimaryClipChangedListener(clipboardListener)
+    }
+    private fun getFileNameFromUri(uri: android.net.Uri): String {
+        var name = "file"
+        try {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIdx != -1 && cursor.moveToFirst()) {
+                    name = cursor.getString(nameIdx)
+                }
+            }
+        } catch (_: Exception) {}
+        if (name == "file") {
+            name = uri.lastPathSegment ?: "file"
+        }
+        return name
     }
     private var isLogcatRunning = false
 

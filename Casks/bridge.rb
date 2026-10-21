@@ -1,5 +1,5 @@
 cask "bridge" do
-  version "0.1.17"
+  version "0.1.18"
   sha256 :no_check
 
   url "https://github.com/rajanraj2/bridge/releases/download/v#{version}/Bridge-v#{version}.dmg"

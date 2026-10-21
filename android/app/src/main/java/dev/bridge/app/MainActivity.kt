@@ -188,7 +188,7 @@ fun BridgeDashboard(
     var lastActionLog by remember { mutableStateOf<String?>(null) }
     var lastReceivedClipboardText by remember { mutableStateOf<String?>(null) }
     var exportedBundleJson by remember { mutableStateOf<String?>(null) }
-    val currentAppVersion = "0.1.17"
+    val currentAppVersion = "0.1.18"
     val coroutineScope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -266,10 +266,20 @@ fun BridgeDashboard(
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         try {
                             if (hasImage) {
-                                val cacheFile = java.io.File(context.cacheDir, "received_clipboard.png")
+                                val fileName = if (update.fileName.isNotBlank()) update.fileName else (if (update.contentType.contains("png")) "image.png" else "shared_file.bin")
+                                val sharedDir = java.io.File(context.cacheDir, "shared_clipboard").apply { mkdirs() }
+                                val cacheFile = java.io.File(sharedDir, fileName)
                                 cacheFile.writeBytes(update.imageData.toByteArray())
-                                lastReceivedClipboardText = "[Image: ${update.imageData.size() / 1024} KB]"
-                                lastActionLog = "Received image (${update.imageData.size() / 1024} KB)"
+                                val contentUri = androidx.core.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    cacheFile
+                                )
+                                val mime = if (update.contentType.isNotBlank()) update.contentType else "application/octet-stream"
+                                val clip = ClipData(android.content.ClipDescription(fileName, arrayOf(mime)), ClipData.Item(contentUri))
+                                clipboardManager.setPrimaryClip(clip)
+                                lastReceivedClipboardText = "[$fileName (${update.imageData.size() / 1024} KB)]"
+                                lastActionLog = "Received $fileName ready to paste!"
                             } else if (!text.isNullOrBlank()) {
                                 val clip = ClipData.newPlainText("Bridge", text)
                                 clipboardManager.setPrimaryClip(clip)
@@ -280,7 +290,7 @@ fun BridgeDashboard(
                             println("MainActivity: setPrimaryClip error: ${e.message}")
                         }
                     }
-                    val notifText = if (hasImage) "[Image Received]" else text
+                    val notifText = if (hasImage) "Ready to paste: ${update.fileName.ifEmpty { "file" }}" else text
                     BridgeForegroundService.notifyReceivedClipboard(context, notifText)
                 }
                 if (envelope.hasShareText()) {

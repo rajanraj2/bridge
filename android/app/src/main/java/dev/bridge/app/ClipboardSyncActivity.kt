@@ -41,11 +41,32 @@ class ClipboardSyncActivity : Activity() {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             val clip = cm?.primaryClip
             if (clip != null && clip.itemCount > 0) {
-                val text = clip.getItemAt(0).coerceToText(this).toString()
-                if (text.isNotBlank() && text != BridgeForegroundService.lastReceivedText && text != BridgeForegroundService.lastSentText) {
-                    hasRead = true
-                    println("ClipboardSyncActivity: Captured clipboard on focus: '$text'")
-                    BridgeForegroundService.dispatchLocalCopy(text)
+                val item = clip.getItemAt(0)
+                val uri = item.uri
+                if (uri != null) {
+                    val mime = contentResolver.getType(uri) ?: "application/octet-stream"
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    if (bytes != null && bytes.isNotEmpty()) {
+                        hasRead = true
+                        var fileName = "file"
+                        try {
+                            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                                val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                if (nameIdx != -1 && cursor.moveToFirst()) {
+                                    fileName = cursor.getString(nameIdx)
+                                }
+                            }
+                        } catch (_: Exception) {}
+                        println("ClipboardSyncActivity: Captured file/image on focus: '$fileName'")
+                        BridgeForegroundService.dispatchLocalFileOrImage(bytes, mime, fileName)
+                    }
+                } else {
+                    val text = item.coerceToText(this).toString()
+                    if (text.isNotBlank() && text != BridgeForegroundService.lastReceivedText && text != BridgeForegroundService.lastSentText) {
+                        hasRead = true
+                        println("ClipboardSyncActivity: Captured clipboard on focus: '$text'")
+                        BridgeForegroundService.dispatchLocalCopy(text)
+                    }
                 }
             }
         } catch (e: Exception) {

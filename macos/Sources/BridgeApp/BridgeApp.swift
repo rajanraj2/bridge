@@ -54,7 +54,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
 
     @Published public var lastTransferLog: String? = nil
     @Published public var exportedDiagnosticBundle: String? = nil
-    public let appVersion = "0.1.17"
+    public let appVersion = "0.1.18"
     @Published public var availableUpdate: UpdateInfo? = nil
     @Published public var updateStatusText: String? = nil
     @Published public var isCheckingUpdates: Bool = false
@@ -171,6 +171,52 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
                     return
                 }
 
+                // 1. Check for copied files in Finder
+                #if os(macOS)
+                if let fileURLs = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
+                   let firstURL = fileURLs.first, firstURL.isFileURL {
+                    let path = firstURL.path
+                    if FileManager.default.fileExists(atPath: path),
+                       let fileData = try? Data(contentsOf: firstURL, options: .mappedIfSafe),
+                       fileData.count <= 15_728_640 {
+                        let fileName = firstURL.lastPathComponent
+                        let ext = firstURL.pathExtension.lowercased()
+                        let mime = (ext == "png" || ext == "jpg" || ext == "jpeg") ? "image/\(ext)" : "application/octet-stream"
+                        if let env = self.clipboardService.handleLocalImageCopy(
+                            imageData: fileData,
+                            contentType: mime,
+                            fileName: fileName,
+                            localDeviceId: self.deviceId,
+                            sessionId: "live-session",
+                            forceSend: true
+                        ) {
+                            self.sendEnvelope(env)
+                            self.lastTransferLog = "Sent file: \(fileName) (\(fileData.count / 1024) KB)..."
+                            return
+                        }
+                    }
+                }
+                #endif
+
+                // 2. Check for copied images
+                let pboardTypes = NSPasteboard.general.types ?? []
+                let hasImage = pboardTypes.contains(NSPasteboard.PasteboardType.png) || pboardTypes.contains(NSPasteboard.PasteboardType.tiff)
+                if hasImage, let imgData = NSPasteboard.general.data(forType: .png) ?? NSPasteboard.general.data(forType: .tiff) {
+                    if let env = self.clipboardService.handleLocalImageCopy(
+                        imageData: imgData,
+                        contentType: "image/png",
+                        fileName: "image.png",
+                        localDeviceId: self.deviceId,
+                        sessionId: "live-session",
+                        forceSend: true
+                    ) {
+                        self.sendEnvelope(env)
+                        self.lastTransferLog = "Sent image to phone (\(imgData.count / 1024) KB)..."
+                        return
+                    }
+                }
+
+                // 3. Fallback to plain text with settle debounce
                 if let string = NSPasteboard.general.string(forType: .string), !string.isEmpty {
                     self.pendingPasteboardTask?.cancel()
                     self.pendingPasteboardTask = Task { @MainActor [weak self] in
@@ -185,17 +231,6 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
                                 self.lastTransferLog = "Sent to phone: \(string.prefix(25))..."
                             }
                         }
-                    }
-                } else if let imgData = NSPasteboard.general.data(forType: .png) ?? NSPasteboard.general.data(forType: .tiff) {
-                    if let env = self.clipboardService.handleLocalImageCopy(
-                        imageData: imgData,
-                        contentType: "image/png",
-                        localDeviceId: self.deviceId,
-                        sessionId: "live-session",
-                        forceSend: true
-                    ) {
-                        self.sendEnvelope(env)
-                        self.lastTransferLog = "Sent image to phone (\(imgData.count / 1024) KB)..."
                     }
                 }
             }
@@ -239,9 +274,23 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
                 switch self.clipboardService.handleRemotePayload(envelope: envelope, localDeviceId: self.deviceId) {
                 case .success(let payload):
                     NSPasteboard.general.clearContents()
-                    if let imgData = payload.imageData {
-                        NSPasteboard.general.setData(imgData, forType: .png)
-                        self.lastTransferLog = "Image received (\(imgData.count / 1024) KB)"
+                    if let fileOrImgData = payload.imageData {
+                        let fileName = payload.fileName ?? (payload.contentType.contains("image") ? "image.png" : "shared_file.bin")
+                        let downloadsDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+                        let bridgeDir = downloadsDir.appendingPathComponent("Bridge", isDirectory: true)
+                        try? FileManager.default.createDirectory(at: bridgeDir, withIntermediateDirectories: true)
+                        let targetURL = bridgeDir.appendingPathComponent(fileName)
+                        try? fileOrImgData.write(to: targetURL)
+
+                        // Declare fileURL so Cmd+V in Finder or Desktop pastes the file directly!
+                        #if os(macOS)
+                        NSPasteboard.general.writeObjects([targetURL as NSURL])
+                        if payload.contentType.contains("image") || fileName.hasSuffix(".png") || fileName.hasSuffix(".jpg") || fileName.hasSuffix(".jpeg") {
+                            NSPasteboard.general.setData(fileOrImgData, forType: .png)
+                            NSPasteboard.general.setData(fileOrImgData, forType: .tiff)
+                        }
+                        #endif
+                        self.lastTransferLog = "Received file: \(fileName) (\(fileOrImgData.count / 1024) KB)"
                     } else if let text = payload.text {
                         NSPasteboard.general.setString(text, forType: .string)
                         self.lastTransferLog = "Clipboard received: \(text.prefix(25))..."
@@ -253,7 +302,7 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
                         relayEnv.visitedDeviceIds.append(self.deviceId)
                         self.sendEnvelope(relayEnv)
                     }
-                    let notifBody = payload.text != nil ? payload.text!.prefix(40) : "Image ready to paste"
+                    let notifBody = payload.fileName ?? (payload.text != nil ? String(payload.text!.prefix(40)) : "File ready to paste")
                     let alertScript = "display notification \"\(notifBody)\" with title \"Clipboard Synced\" subtitle \"From Mesh Peer\""
                     if let appleScript = NSAppleScript(source: alertScript) {
                         var err: NSDictionary?
@@ -437,6 +486,17 @@ public final class BridgeAppModel: @unchecked Sendable, ObservableObject, Socket
         }
         #endif
     }
+
+    public func relaunchApplication() {
+        #if os(macOS)
+        let appPath = Bundle.main.bundlePath
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-n", appPath]
+        try? task.run()
+        NSApplication.shared.terminate(nil)
+        #endif
+    }
 }
 
 struct BridgeMenuView: View {
@@ -463,11 +523,18 @@ struct BridgeMenuView: View {
                             .font(.caption)
                             .bold()
                     }
-                    Button("⬇️ Download & Install Update...") {
-                        model.openUpdateDownload()
+                    HStack(spacing: 8) {
+                        Button("⬇️ Download...") {
+                            model.openUpdateDownload()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+
+                        Button("🔄 Relaunch App") {
+                            model.relaunchApplication()
+                        }
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
                 }
                 .padding(8)
                 .background(Color.blue.opacity(0.1))
